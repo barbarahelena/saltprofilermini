@@ -36,6 +36,10 @@ process PROKKA {
     def proteins_opt = proteins ? "--proteins ${proteins[0]}" : ""
     def prodigal_tf = prodigal_tf ? "--prodigaltf ${prodigal_tf[0]}" : ""
     """
+    export TMPDIR="\$PWD/tmp"
+    mkdir -p "\$PWD/tmp"
+    export JAVA_TOOL_OPTIONS="-XX:-UsePerfData"
+
     prokka \\
         $args \\
         --cpus $task.cpus \\

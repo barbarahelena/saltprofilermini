@@ -14,13 +14,13 @@ busco_clean=$7
 extra_args=$8
 
 # ensure augustus has write access to config directory
-if [ ${cp_augustus_config} = "Y" ]; then
+if [ "${cp_augustus_config}" = "Y" ]; then
     cp -r /usr/local/config/ augustus_config/
     export AUGUSTUS_CONFIG_PATH=augustus_config
 fi
 
 # place db in extra folder to ensure BUSCO recognizes it as path (instead of downloading it)
-if [ ${lineage_dataset_provided} = "Y" ]; then
+if [ "${lineage_dataset_provided}" = "Y" ]; then
     mkdir dataset
     mv ${db} dataset/
 fi
