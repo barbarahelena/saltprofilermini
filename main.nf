@@ -1,13 +1,4 @@
 #!/usr/bin/env nextflow
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    nf-core/mag
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Github : https://github.com/nf-core/mag
-    Website: https://nf-co.re/mag
-    Slack  : https://nfcore.slack.com/channels/mag
-----------------------------------------------------------------------------------------
-*/
 
 nextflow.enable.dsl = 2
 
@@ -17,22 +8,10 @@ nextflow.enable.dsl = 2
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { MAG                     } from './workflows/mag'
-include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_mag_pipeline'
-include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_mag_pipeline'
-
-include { getGenomeAttribute      } from './subworkflows/local/utils_nfcore_mag_pipeline'
-
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    GENOME PARAMETER VALUES
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
-
-// TODO nf-core: Remove this line if you don't need a FASTA file [TODO: try and test using for --host_fasta and --host_genome]
-//   This is an example of how to use getGenomeAttribute() to fetch parameters
-//   from igenomes.config using `--genome`
-// params.fasta = WorkflowMain.getGenomeAttribute(params, 'fasta')
+include { SALTPROFILER            } from './workflows/saltprofiler'
+include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_saltprofiler'
+include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_saltprofiler'
+include { getGenomeAttribute      } from './subworkflows/local/utils_saltprofiler'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -43,11 +22,10 @@ include { getGenomeAttribute      } from './subworkflows/local/utils_nfcore_mag_
 //
 // WORKFLOW: Run main analysis pipeline depending on type of input
 //
-workflow NFCORE_MAG {
+workflow MAIN {
 
     take:
         raw_short_reads  // channel: samplesheet read in from --input
-        raw_long_reads
         input_assemblies
 
     main:
@@ -55,9 +33,8 @@ workflow NFCORE_MAG {
     //
     // WORKFLOW: Run pipeline
     //
-    MAG (
+    SALTPROFILER (
         raw_short_reads,  // channel: samplesheet read in from --input
-        raw_long_reads,
         input_assemblies
     )
 
@@ -91,9 +68,8 @@ workflow {
     //
     // WORKFLOW: Run main workflow
     //
-    NFCORE_MAG (
+    SALTPROFILER (
         PIPELINE_INITIALISATION.out.raw_short_reads,
-        PIPELINE_INITIALISATION.out.raw_long_reads,
         PIPELINE_INITIALISATION.out.input_assemblies
     )
 
@@ -107,7 +83,7 @@ workflow {
         params.outdir,
         params.monochrome_logs,
         params.hook_url,
-        NFCORE_MAG.out.multiqc_report
+        SALTPROFILER.out.multiqc_report
     )
 }
 
