@@ -1,107 +1,75 @@
 /*
- * Salt genes screen
+ * Salt gene profiler
  */
 
-include { SALTGENES_FILTER      } from '../../modules/local/saltgenes_filter'
-include { SALTGENES_CONCAT      } from '../../modules/local/saltgenes_concat'
-include { SALTGENES_MAP         } from '../../modules/local/saltgenes_map'
+
+include { SALTGENES_FILTER          } from '../../modules/local/saltgenes/filter'
+include { SALTGENES_CATPERGENE      } from '../../modules/local/saltgenes/catpergene'
+include { SALTGENES_CATPERSAMPLE    } from '../../modules/local/saltgenes/catpersample'
+include { SALTGENES_MAP             } from '../../modules/local/saltgenes/map'
+include { SALTGENES_BOWTIE2BUILD    } from '../../modules/local/saltgenes/bowtie2build'
+include { SALTGENES_BOWTIE2ALIGN    } from '../../modules/local/saltgenes/bowtie2align'
+include { SALTGENES_COUNT           } from '../../modules/local/saltgenes/count'
 
 workflow SALTGENES {
+
     take:
-    bins              // channel: [ val(meta), [bins] ]
-    busco_summary     // channel: path
-    checkm_summary    // channel: path
-    gtdb              // channel: path
-    gtdb_mash         // channel: path
+    genes
+    prokka_output
+    reads
 
     main:
-    // Filter bins: classify only medium & high quality MAGs
-    ch_bin_metrics = Channel.empty()
-    if ( params.binqc_tool == 'busco' ){
-        // Collect completeness and contamination metrics from busco summary
-        ch_bin_metrics = busco_summary
-            .splitCsv(header: true, sep: '\t')
-            .map { row ->
-                        def completeness  = -1
-                        def contamination = -1
-                        def missing, duplicated
-                        def busco_db = file(params.busco_db)
-                        if (busco_db.getBaseName().contains('odb10')) {
-                            missing    = row.'%Missing (specific)'      // TODO or just take '%Complete'?
-                            duplicated = row.'%Complete and duplicated (specific)'
-                        } else {
-                            missing    = row.'%Missing (domain)'
-                            duplicated = row.'%Complete and duplicated (domain)'
-                        }
-                        if (missing != '') completeness = 100.0 - Double.parseDouble(missing)
-                        if (duplicated != '') contamination = Double.parseDouble(duplicated)
-                        [row.'GenomeBin', completeness, contamination]
-            }
-    } else {
-        // Collect completeness and contamination metrics from checkm summary
-        ch_bin_metrics = checkm_summary
-            .splitCsv(header: true, sep: '\t')
-            .map { row ->
-                        def completeness  = Double.parseDouble(row.'Completeness')
-                        def contamination = Double.parseDouble(row.'Contamination')
-                        [row.'Bin Id' + ".fa", completeness, contamination]
-            }
-    }
 
+    ch_versions = Channel.empty()
 
-    // Filter bins based on collected metrics: completeness, contamination
-    ch_filtered_bins = bins
-        .transpose()
-        .map { meta, bin -> [bin.getName(), bin, meta]}
-        .join(ch_bin_metrics, failOnDuplicate: true)
-        .map { bin_name, bin, meta, completeness, contamination -> [meta, bin, completeness, contamination] }
-        .branch {
-            passed: (it[2] != -1 && it[2] >= params.gtdbtk_min_completeness && it[3] != -1 && it[3] <= params.gtdbtk_max_contamination)
-                return [it[0], it[1]]
-            discarded: (it[2] == -1 || it[2] < params.gtdbtk_min_completeness || it[3] == -1 || it[3] > params.gtdbtk_max_contamination)
-                return [it[0], it[1]]
-        }
+    ch_saltgenes = prokka_output.combine(genes)
 
-    if ( gtdb.extension == 'gz' ) {
-        // Expects to be tar.gz!
-        ch_db_for_gtdbtk = GTDBTK_DB_PREPARATION ( gtdb ).db
-    } else if ( gtdb.isDirectory() ) {
-        // The classifywf module expects a list of the _contents_ of the GTDB
-        // database, not just the directory itself (I'm not sure why). But
-        // for now we generate this list before putting into a channel,
-        // then grouping again to pass to the module.
-        // Then make up meta id to match expected channel cardinality for GTDBTK
-        gtdb_dir = gtdb.listFiles()
-        ch_db_for_gtdbtk = Channel
-                            .of(gtdb_dir)
-                            .collect()
-                            .map { ["gtdb", it] }
-    } else {
-        error("Unsupported object given to --gtdb, database must be supplied as either a directory or a .tar.gz file!")
-    }
-
-
-    // Print warning why GTDB-TK summary empty if passed channel gets no files
-    ch_filtered_bins.passed
-        .count()
-        .map{it == 0 ? log.warn("No contigs passed GTDB-TK min. completeness filters. GTDB-TK summary will execute but results will be empty!") : ""}
-
-
-    GTDBTK_CLASSIFYWF (
-        ch_filtered_bins.passed.groupTuple(),
-        ch_db_for_gtdbtk,
-        params.gtdbtk_pplacer_useram ? false : true,
-        gtdb_mash
+    SALTGENES_FILTER ( 
+        ch_saltgenes
     )
+    ch_versions = ch_versions.mix(SALTGENES_FILTER.out.versions.first())
+   
+    // Concatenate the seqs and gffs per gene per sample
+    ch_fapergene = SALTGENES_FILTER.out.seqs
+                            .map { metadata, gene, fasta -> 
+                                        def lastDashIndex = metadata.id.lastIndexOf('-')
+                                        def dotIndex = metadata.id.indexOf('.', lastDashIndex)
+                                        def subject_id = metadata.id.substring(lastDashIndex + 1, dotIndex)
+                                        tuple( subject_id, metadata.id, gene, fasta )
+                                    }
+                            .groupTuple(by: [0,2])
+    ch_gffpergene = SALTGENES_FILTER.out.gff
+                            .map { metadata, gene, gff -> 
+                                        def lastDashIndex = metadata.id.lastIndexOf('-')
+                                        def dotIndex = metadata.id.indexOf('.', lastDashIndex)
+                                        def subject_id = metadata.id.substring(lastDashIndex + 1, dotIndex)
+                                        tuple( subject_id, metadata.id, gene, gff )
+                                    }
+                            .groupTuple(by: [0,2])
+    SALTGENES_CATPERGENE( ch_fapergene, ch_gffpergene )
+    ch_versions = ch_versions.mix(SALTGENES_CAT.out.versions.first())
 
-    GTDBTK_SUMMARY (
-        ch_filtered_bins.discarded.map{it[1]}.collect().ifEmpty([]),
-        GTDBTK_CLASSIFYWF.out.summary.map{it[1]}.collect().ifEmpty([]),
-        [],
-        []
-    )
+    // Concatenate the seqs and gffs per sample
+    ch_fapersample = ch_fapergene.groupTuple(by: 0)
+    ch_gffpersample = ch_gffpergene.groupTuple(by: 0)
+    SALTGENES_CATPERSAMPLE( ch_fapersample, ch_gffpersample )
+
+    // Mapping with Bowtie2: now per sample because seemed more efficient
+    SALTGENES_BOWTIE2BUILD( SALTGENES_CATPERSAMPLE.out.mergedfa )
+    ch_versions = ch_versions.mix(SALTGENES_BOWTIE2BUILD.out.versions.first())
+
+    // Combine the index channel, reads channel and gff channel (annotation)
+    ch_reads = reads.map { metadata, reads -> tuple( metadata.id, reads ) }
+    ch_indexgffreads = SALTGENES_BOWTIE2BUILD.out.index
+                            .combine(ch_reads, by: 0)
+                            .combine(SALTGENES_CATPERSAMPLE.out.mergedgff, by: 0)
+
+    SALTGENES_BOWTIE2ALIGN( ch_indexgffreads )
+    ch_versions = ch_versions.mix(SALTGENES_BOWTIE2ALIGN.out.versions.first())
+
+    SALTGENES_COUNT(SALTGENES_BOWTIE2ALIGN.out.bam, ch_indexgffreads )
+    ch_versions = ch_versions.mix(SALTGENES_COUNT.out.versions.first())
 
     emit:
-    summary     = GTDBTK_SUMMARY.out.summary
-    versions    = GTDBTK_CLASSIFYWF.out.versions
+    versions = ch_versions                     // channel: [ versions.yml ]
 }

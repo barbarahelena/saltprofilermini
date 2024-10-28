@@ -13,13 +13,14 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_saltprofile
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
 //
+include { METAPHLAN                       } from '../subworkflows/local/metaphlan'
 include { BINNING_PREPARATION             } from '../subworkflows/local/binning_preparation'
 include { BINNING                         } from '../subworkflows/local/binning'
-include { BINNING_REFINEMENT              } from '../subworkflows/local/binning_refinement'
 include { BUSCO_QC                        } from '../subworkflows/local/busco_qc'
 include { CHECKM_QC                       } from '../subworkflows/local/checkm_qc'
 include { GTDBTK                          } from '../subworkflows/local/gtdbtk'
 include { DEPTHS                          } from '../subworkflows/local/depths'
+include { SALTGENES                       } from '../subworkflows/local/saltgenes'
 
 //
 // MODULE: Installed directly from nf-core/modules
@@ -36,7 +37,6 @@ include { CAT_FASTQ                                             } from '../modul
 include { GUNZIP as GUNZIP_ASSEMBLIES                           } from '../modules/nf-core/gunzip'
 include { PRODIGAL                                              } from '../modules/nf-core/prodigal/main'
 include { PROKKA                                                } from '../modules/nf-core/prokka/main'
-include { MMSEQS_DATABASES                                      } from '../modules/nf-core/mmseqs/databases/main'
 
 //
 // MODULE: Local to the pipeline
@@ -83,27 +83,9 @@ if(params.checkm_db) {
     ch_checkm_db = file(params.checkm_db, checkIfExists: true)
 }
 
-if(params.kraken2_db){
-    ch_kraken2_db_file = file(params.kraken2_db, checkIfExists: true)
-} else {
-    ch_kraken2_db_file = []
-}
-
-if(params.cat_db){
-    ch_cat_db_file = Channel
-        .value(file( "${params.cat_db}" ))
-} else {
-    ch_cat_db_file = Channel.empty()
-}
-
 if(!params.keep_phix) {
     ch_phix_db_file = Channel
         .value(file( "${params.phix_reference}" ))
-}
-
-if (!params.keep_lambda) {
-    ch_nanolyse_db = Channel
-        .value(file( "${params.lambda_reference}" ))
 }
 
 gtdb = ( params.skip_binqc || params.skip_gtdbtk ) ? false : params.gtdb_db
@@ -121,7 +103,6 @@ if (gtdb) {
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-// Additional info for completion email and summary
 def busco_failed_bins = [:]
 
 workflow SALTPROFILER {
@@ -148,9 +129,7 @@ workflow SALTPROFILER {
     ================================================================================
     */
 
-    FASTQC_RAW (
-        ch_raw_short_reads
-    )
+    FASTQC_RAW ( ch_raw_short_reads )
     ch_versions = ch_versions.mix(FASTQC_RAW.out.versions.first())
 
     ch_bowtie2_removal_host_multiqc = Channel.empty()
@@ -302,6 +281,13 @@ workflow SALTPROFILER {
     ================================================================================
     */
 
+    if ( !params.skip_metaphlan ) {
+        METAPHLAN (
+            ch_short_reads
+        )
+        ch_versions = ch_versions.mix(METAPHLAN.out.versions.first())
+    }
+    
 
     /*
     ================================================================================
@@ -351,7 +337,7 @@ workflow SALTPROFILER {
         }
 
         // Co-assembly: pool reads for SPAdes
-        if ( ! params.skip_spades || ! params.skip_spadeshybrid ){
+        if ( ! params.skip_spades ){
             if ( params.coassemble_group ) {
                 if ( params.bbnorm ) {
                     ch_short_reads_spades = ch_short_reads_grouped.map { [ it[0], it[1] ] }
@@ -384,7 +370,7 @@ workflow SALTPROFILER {
             ch_assemblies = ch_assemblies.mix(ch_spades_assemblies)
             ch_versions = ch_versions.mix(SPADES.out.versions.first())
         }
-    } else {
+    } else { // if assemblies were provided as input
         ch_assemblies_split = ch_input_assemblies
             .branch { meta, assembly ->
                 gzipped: assembly.getExtension() == "gz"
@@ -398,6 +384,7 @@ workflow SALTPROFILER {
         ch_assemblies = ch_assemblies.mix(ch_assemblies_split.ungzip, GUNZIP_ASSEMBLIES.out.gunzip)
     }
 
+    // QUAST for assemblies
     ch_quast_multiqc = Channel.empty()
     if (!params.skip_quast){
         QUAST ( ch_assemblies )
@@ -442,30 +429,25 @@ workflow SALTPROFILER {
     */
 
     if (!params.skip_binning){
-            BINNING (
-                BINNING_PREPARATION.out.grouped_mappings,
-                ch_short_reads
-            )
-            ch_versions = ch_versions.mix(BINNING.out.versions)
+        BINNING (
+            BINNING_PREPARATION.out.grouped_mappings,
+            ch_short_reads
+        )
+        ch_versions = ch_versions.mix(BINNING.out.versions)
 
-            ch_binning_results_bins = BINNING.out.bins
-                .map { meta, bins ->
-                    def meta_new = meta + [domain: 'unclassified']
-                    [meta_new, bins]
-                }
-            ch_binning_results_unbins = BINNING.out.unbinned
-                .map { meta, bins ->
-                    def meta_new = meta + [domain: 'unclassified']
-                    [meta_new, bins]
-                }
+        ch_binning_results_bins = BINNING.out.bins
+            .map { meta, bins ->
+                def meta_new = meta + [domain: 'unclassified']
+                [meta_new, bins]
+            }
+        ch_binning_results_unbins = BINNING.out.unbinned
+            .map { meta, bins ->
+                def meta_new = meta + [domain: 'unclassified']
+                [meta_new, bins]
+            }
 
-            ch_input_for_postbinning_bins        = ch_binning_results_bins
-            ch_input_for_postbinning_bins_unbins = ch_binning_results_bins.mix(ch_binning_results_unbins)
-
-        } else {
-            ch_input_for_postbinning_bins        = ch_binning_results_bins
-            ch_input_for_postbinning_bins_unbins = ch_binning_results_bins.mix(ch_binning_results_unbins)
-        }
+        ch_input_for_postbinning_bins        = ch_binning_results_bins
+        ch_input_for_postbinning_bins_unbins = ch_binning_results_bins.mix(ch_binning_results_unbins)
 
         DEPTHS ( ch_input_for_postbinning_bins_unbins, BINNING.out.metabat2depths, ch_short_reads )
         ch_input_for_binsummary = DEPTHS.out.depths_summary
@@ -570,7 +552,6 @@ workflow SALTPROFILER {
                 ch_checkm_summary.ifEmpty([]),
                 ch_quast_bins_summary.ifEmpty([]),
                 ch_gtdbtk_summary.ifEmpty([]),
-                ch_cat_global_summary.ifEmpty([])
             )
         }
 
@@ -594,8 +575,23 @@ workflow SALTPROFILER {
                 []
             )
             ch_versions = ch_versions.mix(PROKKA.out.versions.first())
+
+            /*
+            * Overview of salt tolerance genes
+            */
+            if ( !params.skip_saltgenes ) {
+                ch_genes = Channel.of("murB", "galE", "mazG", "betL")
+                ch_prokka_output = PROKKA.out.gff.join(PROKKA.out.fna)
+                SALTGENES(
+                    ch_genes,
+                    ch_prokka_output,
+                    ch_short_reads
+                )
+            ch_versions = ch_versions.mix(SALTGENES.out.versions.first())
+            }
         }
     }
+
 
     //
     // Collate and save software versions
@@ -665,7 +661,6 @@ workflow SALTPROFILER {
         }
 
     }
-    ch_multiqc_files = ch_multiqc_files.mix(KRAKEN2.out.report.collect{it[1]}.ifEmpty([]))
 
     if (!params.skip_quast){
         ch_multiqc_files = ch_multiqc_files.mix(QUAST.out.report.collect().ifEmpty([]))
