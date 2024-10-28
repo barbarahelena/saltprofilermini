@@ -400,7 +400,7 @@
                 },
                 "phix_reference": {
                     "type": "string",
-                    "default": "${baseDir}/assets/data/GCA_002596845.1_ASM259684v1_genomic.fna.gz",
+                    "default": "/home/barbara/pipelines/saltprofiler/assets/data/GCA_002596845.1_ASM259684v1_genomic.fna.gz",
                     "description": "Genome reference used to remove Illumina PhiX contaminant reads.",
                     "hidden": true
                 },
@@ -432,103 +432,12 @@
                 }
             }
         },
-        "quality_control_for_long_reads_options": {
-            "title": "Quality control for long reads options",
-            "type": "object",
-            "description": "",
-            "default": "",
-            "properties": {
-                "skip_adapter_trimming": {
-                    "type": "boolean",
-                    "description": "Skip removing adapter sequences from long reads."
-                },
-                "longreads_min_length": {
-                    "type": "integer",
-                    "default": 1000,
-                    "description": "Discard any read which is shorter than this value."
-                },
-                "longreads_keep_percent": {
-                    "type": "integer",
-                    "default": 90,
-                    "description": "Keep this percent of bases."
-                },
-                "longreads_length_weight": {
-                    "type": "integer",
-                    "default": 10,
-                    "description": "The higher the more important is read length when choosing the best reads.",
-                    "help_text": "The default value focuses on length instead of quality to improve assembly size.\nIn order to assign equal weights to read lengths and read qualities set this parameter to 1.\nThis might be useful, for example, to benefit indirectly from the removal of short host reads (causing lower qualities for reads not overlapping filtered short reads)."
-                },
-                "keep_lambda": {
-                    "type": "boolean",
-                    "description": "Keep reads similar to the ONT internal standard Escherichia virus Lambda genome."
-                },
-                "lambda_reference": {
-                    "type": "string",
-                    "default": "${baseDir}/assets/data/GCA_000840245.1_ViralProj14204_genomic.fna.gz",
-                    "hidden": true,
-                    "description": "Genome reference used to remove ONT Lambda contaminant reads."
-                },
-                "save_lambdaremoved_reads": {
-                    "type": "boolean",
-                    "description": "Specify to save input FASTQ files with lamba reads removed  to --outdir."
-                },
-                "save_porechop_reads": {
-                    "type": "boolean",
-                    "description": "Specify to save the resulting clipped FASTQ files to --outdir."
-                },
-                "save_filtlong_reads": {
-                    "type": "boolean",
-                    "description": "Specify to save the resulting length filtered FASTQ files to --outdir."
-                }
-            }
-        },
         "taxonomic_profiling_options": {
             "title": "Taxonomic profiling options",
             "type": "object",
             "description": "Taxonomic classification is disabled by default. You have to specify one of the options below to activate it.",
             "default": "",
             "properties": {
-                "centrifuge_db": {
-                    "type": "string",
-                    "format": "file-path",
-                    "exists": true,
-                    "description": "Database for taxonomic binning with centrifuge.",
-                    "help_text": "Local directory containing `*.cf` files, or a URL or local path to a downloaded compressed tar archive of a Centrifuge database. E.g. ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p_compressed+h+v.tar.gz."
-                },
-                "kraken2_db": {
-                    "type": "string",
-                    "format": "file-path",
-                    "description": "Database for taxonomic binning with kraken2.",
-                    "help_text": "Path to a local directory, archive file, or a URL to compressed tar archive that contains at least the three files `hash.k2d`, `opts.k2d` and `taxo.k2d`. E.g. ftp://ftp.ccb.jhu.edu/pub/data/kraken2_dbs/minikraken_8GB_202003.tgz."
-                },
-                "krona_db": {
-                    "type": "string",
-                    "description": "Database for taxonomic binning with krona",
-                    "help_text": "Path to `taxonomy.tab` file for Krona, instead of downloading the default file. Point at the `.tab` file."
-                },
-                "skip_krona": {
-                    "type": "boolean",
-                    "description": "Skip creating a krona plot for taxonomic binning."
-                },
-                "cat_db": {
-                    "type": "string",
-                    "description": "Database for taxonomic classification of metagenome assembled genomes. Can be either a zipped file or a directory containing the extracted output of such.",
-                    "help_text": "E.g. https://tbb.bio.uu.nl/bastiaan/CAT_prepare/CAT_prepare_20210107.tar.gz. This parameter is mutually exclusive with `--cat_db_generate`. The file needs to contain a folder named `*taxonomy*` and `*database*` that hold the respective files."
-                },
-                "cat_db_generate": {
-                    "type": "boolean",
-                    "description": "Generate CAT database.",
-                    "help_text": "Download the taxonomy files from NCBI taxonomy, the nr database and generate CAT database. This parameter is mutually exclusive with `--cat_db`. Useful to build a CAT database with the same DIAMOND version as used for running CAT classification, avoiding compatibility problems."
-                },
-                "save_cat_db": {
-                    "type": "boolean",
-                    "description": "Save the CAT database generated when specified by `--cat_db_generate`.",
-                    "help_text": "Useful to allow reproducibility, as old versions of prebuild CAT databases do not always remain accessible and underlying NCBI taxonomy and nr databases change."
-                },
-                "cat_official_taxonomy": {
-                    "type": "boolean",
-                    "description": "Only return official taxonomic ranks (Kingdom, Phylum, etc.) when running CAT."
-                },
                 "skip_gtdbtk": {
                     "type": "boolean",
                     "description": "Skip the running of GTDB, as well as the automatic download of the database"
@@ -580,14 +489,8 @@
                 },
                 "gtdbtk_pplacer_useram": {
                     "type": "boolean",
-                    "default": false,
                     "description": "Speed up pplacer step of GTDB-Tk by loading to memory.",
                     "help_text": "Will be faster than writing to disk (default setting), however at the expense of much larger memory (RAM) requirements for GDTBTK/CLASSIFY."
-                },
-                "genomad_db": {
-                    "type": "string",
-                    "description": "Database for virus classification with geNomad",
-                    "help_text": "Must be a directory containing the uncompressed contents from https://zenodo.org/doi/10.5281/zenodo.6994741 (nf-core/mag tested with v1.1)"
                 }
             }
         },
@@ -638,45 +541,6 @@
                 "skip_prokka": {
                     "type": "boolean",
                     "description": "Skip Prokka genome annotation."
-                },
-                "skip_metaeuk": {
-                    "type": "boolean",
-                    "description": "Skip MetaEuk gene prediction and annotation"
-                },
-                "metaeuk_mmseqs_db": {
-                    "type": "string",
-                    "description": "A string containing the name of one of the databases listed in the [mmseqs2 documentation](https://github.com/soedinglab/MMseqs2/wiki#downloading-databases). This database will be downloaded and formatted for eukaryotic genome annotation. Incompatible with --metaeuk_db.",
-                    "help_text": "mmseqs2 lists a large number of databases, not all of which are appropriate for use with MetaEuk. MetaEuk requires protein inputs, so you should select one of the Aminoacid or Profile options."
-                },
-                "metaeuk_db": {
-                    "type": "string",
-                    "description": "Path to either a local fasta file of protein sequences, or to a directory containing an mmseqs2-formatted database, for annotation of eukaryotic genomes.",
-                    "help_text": "One option would be the databases from the MetaEuk publication (https://wwwuser.gwdg.de/~compbiol/metaeuk/), however it should be noted that these are focused on marine eukaryotes."
-                },
-                "save_mmseqs_db": {
-                    "type": "boolean",
-                    "description": "Save the downloaded mmseqs2 database specified in `--metaeuk_mmseqs_db`."
-                }
-            }
-        },
-        "virus_identification_options": {
-            "title": "Virus identification options",
-            "type": "object",
-            "default": "",
-            "properties": {
-                "run_virus_identification": {
-                    "type": "boolean",
-                    "description": "Run virus identification."
-                },
-                "genomad_min_score": {
-                    "type": "number",
-                    "default": 0.7,
-                    "description": "Minimum geNomad score for a sequence to be considered viral"
-                },
-                "genomad_splits": {
-                    "type": "integer",
-                    "default": 1,
-                    "description": "Number of groups that geNomad's MMSeqs2 databse should be split into (reduced memory requirements)"
                 }
             }
         },
@@ -700,14 +564,6 @@
                 "skip_metabat2": {
                     "type": "boolean",
                     "description": "Skip MetaBAT2 Binning"
-                },
-                "skip_maxbin2": {
-                    "type": "boolean",
-                    "description": "Skip MaxBin2 Binning"
-                },
-                "skip_concoct": {
-                    "type": "boolean",
-                    "description": "Skip CONCOCT Binning"
                 },
                 "min_contig_size": {
                     "type": "integer",
@@ -736,22 +592,6 @@
                     "type": "boolean",
                     "description": "Save the output of mapping raw reads back to assembled contigs",
                     "help_text": "Specify to save the BAM and BAI files generated when mapping input reads back to the assembled contigs (performed in preparation for binning and contig depth estimations)."
-                },
-                "bin_domain_classification": {
-                    "type": "boolean",
-                    "description": "Enable domain-level (prokaryote or eukaryote) classification of bins using Tiara. Processes which are domain-specific will then only receive bins matching the domain requirement.",
-                    "help_text": "Enable this if it is likely that your metagenome samples contain a mixture of eukaryotic and prokaryotic genomes. This will ensure that prokaryote-only steps only receive putatively prokaryotic genomes, and vice-versa. Additionally, may improve the performance of DAS Tool by ensuring it only receives prokaryotic genomes."
-                },
-                "bin_domain_classification_tool": {
-                    "type": "string",
-                    "default": "tiara",
-                    "description": "Specify which tool to use for domain classification of bins. Currently only 'tiara' is implemented.",
-                    "hidden": true
-                },
-                "tiara_min_length": {
-                    "type": "integer",
-                    "default": 3000,
-                    "description": "Minimum contig length for Tiara to use for domain classification. For accurate classification, should be longer than 3000 bp."
                 }
             }
         },
@@ -806,93 +646,6 @@
                     "type": "boolean",
                     "description": "Save the used CheckM reference files downloaded when not using --checkm_db parameter.",
                     "help_text": "If specified, the directories and files decompressed from the `tar.gz` file downloaded from the [CheckM FTP server](https://data.ace.uq.edu.au/public/CheckM_databases/) will be stored in your output directory alongside your CheckM results."
-                },
-                "refine_bins_dastool": {
-                    "type": "boolean",
-                    "description": "Turn on bin refinement using DAS Tool."
-                },
-                "refine_bins_dastool_threshold": {
-                    "type": "number",
-                    "default": 0.5,
-                    "description": "Specify single-copy gene score threshold for bin refinement.",
-                    "help_text": "Score threshold for single-copy gene selection algorithm to keep selecting bins, with a value ranging from 0-1.\n\nFor description of scoring algorithm, see: Sieber, Christian M. K., et al. 2018. Nature Microbiology 3 (7): 836\u201343. https://doi.org/10.1038/s41564-018-0171-1.\n\n> Modifies DAS Tool parameter --score_threshold\n"
-                },
-                "postbinning_input": {
-                    "type": "string",
-                    "default": "raw_bins_only",
-                    "description": "Specify which binning output is sent for downstream annotation, taxonomic classification, bin quality control etc.",
-                    "help_text": "`raw_bins_only`: only bins (and unbinned contigs) from the binners.\n`refined_bins_only`:  only bins (and unbinned contigs) from the bin refinement step .\n\n ~~`both`: bins and unbinned contigs from both the binning and bin refinement steps.~~ `both` option is disabled in v2.4 due a bug that will be fixed in a later release.",
-                    "enum": ["raw_bins_only", "refined_bins_only", "both"]
-                },
-                "run_gunc": {
-                    "type": "boolean",
-                    "description": "Turn on GUNC genome chimerism checks"
-                },
-                "gunc_db": {
-                    "type": "string",
-                    "description": "Specify a path to a pre-downloaded GUNC dmnd database file"
-                },
-                "gunc_database_type": {
-                    "type": "string",
-                    "default": "progenomes",
-                    "description": "Specify which database to auto-download if not supplying own",
-                    "enum": ["progenomes", "gtdb"]
-                },
-                "gunc_save_db": {
-                    "type": "boolean",
-                    "description": "Save the used GUNC reference files downloaded when not using --gunc_db parameter.",
-                    "help_text": "If specified, the corresponding DIAMOND file downloaded from the GUNC server will be stored in your output directory alongside your GUNC results."
-                }
-            }
-        },
-        "ancient_dna_assembly": {
-            "title": "Ancient DNA assembly",
-            "type": "object",
-            "description": "Performs ancient DNA assembly validation and contig consensus sequence recalling.",
-            "default": "",
-            "properties": {
-                "ancient_dna": {
-                    "type": "boolean",
-                    "description": "Turn on/off the ancient DNA subworfklow"
-                },
-                "pydamage_accuracy": {
-                    "type": "number",
-                    "default": 0.5,
-                    "description": "PyDamage accuracy threshold"
-                },
-                "skip_ancient_damagecorrection": {
-                    "type": "boolean",
-                    "description": "deactivate damage correction of ancient contigs using variant and consensus calling"
-                },
-                "freebayes_ploidy": {
-                    "type": "integer",
-                    "default": 1,
-                    "description": "Ploidy for variant calling"
-                },
-                "freebayes_min_basequality": {
-                    "type": "integer",
-                    "default": 20,
-                    "description": "minimum base quality required for variant calling"
-                },
-                "freebayes_minallelefreq": {
-                    "type": "number",
-                    "default": 0.33,
-                    "description": "minimum minor allele frequency for considering variants"
-                },
-                "bcftools_view_high_variant_quality": {
-                    "type": "integer",
-                    "default": 30,
-                    "description": "minimum genotype quality for considering a variant high quality"
-                },
-                "bcftools_view_medium_variant_quality": {
-                    "type": "integer",
-                    "default": 20,
-                    "description": "minimum genotype quality for considering a variant medium quality"
-                },
-                "bcftools_view_minimal_allelesupport": {
-                    "type": "integer",
-                    "default": 3,
-                    "description": "minimum number of bases supporting the alternative allele"
                 }
             }
         }
@@ -920,9 +673,6 @@
             "$ref": "#/definitions/quality_control_for_short_reads_options"
         },
         {
-            "$ref": "#/definitions/quality_control_for_long_reads_options"
-        },
-        {
             "$ref": "#/definitions/taxonomic_profiling_options"
         },
         {
@@ -932,16 +682,18 @@
             "$ref": "#/definitions/gene_prediction_and_annotation_options"
         },
         {
-            "$ref": "#/definitions/virus_identification_options"
-        },
-        {
             "$ref": "#/definitions/binning_options"
         },
         {
             "$ref": "#/definitions/bin_quality_check_options"
-        },
-        {
-            "$ref": "#/definitions/ancient_dna_assembly"
         }
-    ]
+    ],
+    "properties": {
+        "skip_metaphlan": {
+            "type": "boolean"
+        },
+        "skip_saltgenes": {
+            "type": "boolean"
+        }
+    }
 }
