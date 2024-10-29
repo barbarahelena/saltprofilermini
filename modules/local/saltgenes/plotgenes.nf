@@ -15,9 +15,9 @@
 // TODO nf-core: Optional inputs are not currently supported by Nextflow. However, using an empty
 //               list (`[]`) instead of a file can be used to work around this issue.
 
-process SALTGENES_MAP {
+process SALTGENES_PLOTGENES {
     tag "$meta.id"
-    label 'process_medium'
+    label 'process_single'
 
     // TODO nf-core: List required Conda package(s).
     //               Software MUST be pinned to channel (i.e. "bioconda"), version (i.e. "1.10").

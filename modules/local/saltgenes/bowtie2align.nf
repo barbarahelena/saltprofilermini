@@ -1,5 +1,5 @@
 process SALTGENES_BOWTIE2ALIGN {
-    tag "$subjectid, $gene"
+    tag "$subjectid"
     label 'process_medium'
 
     conda "bioconda::bowtie2=2.4.2 bioconda::samtools=1.11 conda-forge::pigz=2.3.4"
@@ -8,33 +8,37 @@ process SALTGENES_BOWTIE2ALIGN {
         'biocontainers/mulled-v2-ac74a7f02cebcfcc07d8e8d1d750af9c83b4d45a:577a697be67b5ae9b16f637fd723b8263a3898b3-0' }"
 
     input:
-    tuple val(subjectid), val(gene), path(index), path(reads), path(gff)
+    tuple val(subjectid), path(index), path(gff), path(reads)
 
     output:
-    tuple val(subjectid), val(gene), path("${prefix}.bam"), path(gff)  , emit: bam
-    path "versions.yml"                                                , emit: versions
+    tuple val(subjectid), path("${subjectid}.bam"), path(gff)  , emit: bam
+    tuple val(subjectid), path("*.txt")                        , emit: stats
+    path "versions.yml"                                        , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
 
     script:
     def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${subjectid}_${gene}"
-    def forwardreads = reads[0]
-    def revreads = reads[1]
+    def prefix = task.ext.prefix ?: "${subjectid}"
 
     """
+    INDEX=\$(find -L ./ -name "*.rev.1.bt2l" -o -name "*.rev.1.bt2" | sed 's/.rev.1.bt2l//' | sed 's/.rev.1.bt2//')
     bowtie2 \\
         -p "${task.cpus}" \\
-        -x ${prefix} \\
-        -S /dev/null \\
+        -x \$INDEX \\
         $args \\
-        -1 ${forwardreads} \\
-        -2 ${revreads} \\
-        2> "${prefix}.bowtie2.log" | \
-        samtools view -@ "${task.cpus}" -bS | \
-        samtools sort -@ "${task.cpus}" -o "${prefix}.bam"
-    samtools index "${prefix}.bam"
+        -1 "${reads[0]}" -2 "${reads[1]}" \\
+        1> /dev/null \\
+        2> ${subjectid}.bowtie2.log > bowtieout.sam
+    
+    ls -lh bowtieout.sam
+
+    samtools view -@ "${task.cpus}" -bS bowtieout.sam > output.bam
+    samtools sort -@ "${task.cpus}" -o ${subjectid}.bam output.bam
+    samtools index ${subjectid}.bam
+
+    samtools idxstats ${subjectid}.bam > counts_${subjectid}.txt
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -46,10 +50,10 @@ process SALTGENES_BOWTIE2ALIGN {
 
     stub:
     def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${subjectid}_${gene}"
+    def prefix = task.ext.prefix ?: "${subjectid}"
 
     """
-    touch ${prefix}.bam
+    touch ${subjectid}.bam
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

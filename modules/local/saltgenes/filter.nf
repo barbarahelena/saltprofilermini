@@ -11,9 +11,8 @@ process SALTGENES_FILTER {
     tuple val(meta), path(gff), path(fasta), val(gene)
 
     output:
-    tuple val(meta), val(gene), path("*.fasta")     , emit: seqs
-    tuple val(meta), val(gene), path("*.gff")       , emit: gff
-    path "versions.yml"                             , emit: versions
+    tuple val(meta), val(gene), path("*_fixed.fasta"), path("*.gff")     , emit: seqs
+    path "versions.yml"                                                  , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -32,8 +31,18 @@ process SALTGENES_FILTER {
         -fi ${fasta} \\
         -fo ${prefix}.fasta
     
-    awk -v sample_id="bin_${meta.id}" -v gene_id="gene_${gene}" '/^>/ {print ">" sample_id "_" gene_id "_" substr($0, 2)} !/^>/ {print}' \\
-            ${prefix}.fasta > ${prefix}.fasta
+    # awk -v sample_id="bin_${meta.id}" -v gene_id="gene_${gene}" '/^>/ {print ">" sample_id "_" gene_id "_" substr(\$0, 2)} !/^>/ {print}' \\
+    #        ${prefix}.fasta > ${prefix}_fixed.fasta
+
+    awk -v sample_id="bin_${meta.id}" -v gene_id="gene_${gene}" ' 
+    /^>/ {
+        count++
+        sub(/^>/, ">" sample_id "_" gene_id "_" count "_")
+        print
+    } 
+    !/^>/ { 
+        print 
+    }' ${prefix}.fasta > ${prefix}_fixed.fasta
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

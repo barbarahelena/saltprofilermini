@@ -8,24 +8,22 @@ process SALTGENES_CATPERGENE {
         'nf-core/ubuntu:20.04' }"
 
     input:
-    tuple val(subjectid), val(binid), val(gene), path(fasta)
-    tuple val(subjectid), val(binid), val(gene), path(gff)
+    tuple val(subjectid), val(binid), val(gene), path(fasta), path(gff)
 
     output:
-    tuple val(subjectid), val(gene), path("*.fasta")  , emit: mergedfa
-    tuple val(subjectid), val(gene), path("*.gff")    , emit: mergedgff
-    path "versions.yml"                               , emit: versions
+    tuple val(subjectid), val(gene), path("*.fasta"), path("*.gff")  , emit: mergedseqs
+    path "versions.yml"                                              , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
 
     script:
     def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${subjectid}"
+    def prefix = task.ext.prefix ?: "${subjectid}_${gene}"
 
     """
-    cat $fasta  > ${subjectid}_${gene}.fasta
-    cat $gff  > ${subjectid}_${gene}.gff
+    cat $fasta > ${subjectid}_${gene}.fasta
+    cat $gff >> ${subjectid}_${gene}.gff
 
     cat <<-END_VERSIONS > versions.yml
             "${task.process}":

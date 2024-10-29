@@ -1,5 +1,5 @@
 process SALTGENES_BOWTIE2BUILD {
-    tag "$subjectid, $gene"
+    tag "$subjectid"
     label 'process_medium'
 
     conda "bioconda::bowtie2=2.5.4"
@@ -8,10 +8,10 @@ process SALTGENES_BOWTIE2BUILD {
         'biocontainers/bowtie2:2.5.4--h7071971_4' }"
 
     input:
-    tuple val(subjectid), val(gene), path(fasta)
+    tuple val(subjectid), path(fasta), path(gff)
 
     output:
-    tuple val(subjectid), val(gene), path("*.bt2")  , emit: index
+    tuple val(subjectid), path("*.bt2"), path(gff)  , emit: index
     path "versions.yml"                             , emit: versions
 
     when:
@@ -19,7 +19,7 @@ process SALTGENES_BOWTIE2BUILD {
 
     script:
     def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${subjectid}_${gene}"
+    def prefix = task.ext.prefix ?: "${subjectid}"
 
     """
     mkdir bowtie
@@ -33,7 +33,7 @@ process SALTGENES_BOWTIE2BUILD {
 
     stub:
     def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${subjectid}_${gene}"
+    def prefix = task.ext.prefix ?: "${subjectid}"
     """
     touch ${prefix}.bt2
 

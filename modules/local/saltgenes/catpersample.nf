@@ -1,6 +1,6 @@
 process SALTGENES_CATPERSAMPLE {
-    tag "$subjectid"
-    label 'process_single'
+    tag "${subjectid}"
+    label 'process_low'
 
     conda "conda-forge::sed=4.7"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -8,13 +8,11 @@ process SALTGENES_CATPERSAMPLE {
         'nf-core/ubuntu:20.04' }"
 
     input:
-    tuple val(subjectid), val(binid), path(fasta)
-    tuple val(subjectid), val(binid), path(gff)
+    tuple val(subjectid), val(gene), path(fasta), path(gff)
 
     output:
-    tuple val(subjectid), path("*.fasta")  , emit: mergedfa
-    tuple val(subjectid), path("*.gff")    , emit: mergedgff
-    path "versions.yml"                    , emit: versions
+    tuple val(subjectid), path("*.fasta"), path("*.gff")  , emit: mergedgenes
+    path "versions.yml"                                   , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -25,7 +23,7 @@ process SALTGENES_CATPERSAMPLE {
 
     """
     cat $fasta  > ${subjectid}.fasta
-    cat $gff  > ${subjectid}.gff
+    cat $gff >> ${subjectid}.gff
 
     cat <<-END_VERSIONS > versions.yml
             "${task.process}":
@@ -35,7 +33,7 @@ process SALTGENES_CATPERSAMPLE {
 
     stub:
     def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${id}"
+    def prefix = task.ext.prefix ?: "${subjectid}"
 
     """
     touch ${subjectid}.fasta
