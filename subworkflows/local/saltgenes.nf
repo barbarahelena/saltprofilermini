@@ -6,7 +6,7 @@ include { SALTGENES_FILTER          } from '../../modules/local/saltgenes/filter
 include { SALTGENES_CATPERGENE      } from '../../modules/local/saltgenes/catpergene'
 include { SALTGENES_CATPERSAMPLE    } from '../../modules/local/saltgenes/catpersample'
 include { SALTGENES_MUSCLE          } from '../../modules/local/saltgenes/muscle'
-include { SALTGENES_FASTTREE         } from '../../modules/local/saltgenes/fasttree'
+include { SALTGENES_FASTTREE        } from '../../modules/local/saltgenes/fasttree'
 include { SALTGENES_BOWTIE2BUILD    } from '../../modules/local/saltgenes/bowtie2build'
 include { SALTGENES_BOWTIE2ALIGN    } from '../../modules/local/saltgenes/bowtie2align'
 
@@ -16,6 +16,7 @@ workflow SALTGENES {
     genes
     prokka_output
     reads
+    tax
 
     main:
 
