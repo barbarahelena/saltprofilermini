@@ -33,7 +33,7 @@ workflow DEPTHS {
     ch_depth_input = bins_unbins
         .map {
             meta, bins ->
-            def meta_combine = meta - meta.subMap('binner','domain','refinement')
+            def meta_combine = meta - meta.subMap('binner')
             [meta_combine, meta, bins]
         }
         .groupTuple()
