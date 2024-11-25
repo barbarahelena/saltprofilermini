@@ -1,6 +1,4 @@
 process GTDBTK_SUMMARY {
-
-
     conda "conda-forge::pandas=1.4.3"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/pandas:1.4.3' :
@@ -13,8 +11,8 @@ process GTDBTK_SUMMARY {
     path(failed_bins)
 
     output:
-    path "gtdbtk_summary.tsv", emit: summary
-    path "versions.yml"      , emit: versions
+    path "gtdbtk_summary.tsv"   , emit: summary
+    path "versions.yml"         , emit: versions
 
     script:
     def args = task.ext.args ?: ''
