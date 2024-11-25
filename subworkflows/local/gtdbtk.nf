@@ -63,14 +63,8 @@ workflow GTDBTK {
         }
 
     if ( gtdb.extension == 'gz' ) {
-        // Expects to be tar.gz!
         ch_db_for_gtdbtk = GTDBTK_DB_PREPARATION ( gtdb ).db
     } else if ( gtdb.isDirectory() ) {
-        // The classifywf module expects a list of the _contents_ of the GTDB
-        // database, not just the directory itself (I'm not sure why). But
-        // for now we generate this list before putting into a channel,
-        // then grouping again to pass to the module.
-        // Then make up meta id to match expected channel cardinality for GTDBTK
         gtdb_dir = gtdb.listFiles()
         ch_db_for_gtdbtk = Channel
                             .of(gtdb_dir)
@@ -80,12 +74,10 @@ workflow GTDBTK {
         error("Unsupported object given to --gtdb, database must be supplied as either a directory or a .tar.gz file!")
     }
 
-
     // Print warning why GTDB-TK summary empty if passed channel gets no files
     ch_filtered_bins.passed
         .count()
         .map{it == 0 ? log.warn("No contigs passed GTDB-TK min. completeness filters. GTDB-TK summary will execute but results will be empty!") : ""}
-
 
     GTDBTK_CLASSIFYWF (
         ch_filtered_bins.passed.groupTuple(),
@@ -102,6 +94,7 @@ workflow GTDBTK {
     )
 
     emit:
-    summary     = GTDBTK_SUMMARY.out.summary
-    versions    = GTDBTK_CLASSIFYWF.out.versions
+    summarypersample    = GTDBTK_CLASSIFYWF.out.summary
+    summary             = GTDBTK_SUMMARY.out.summary
+    versions            = GTDBTK_CLASSIFYWF.out.versions
 }
