@@ -524,6 +524,7 @@ workflow SALTPROFILER {
 
         if ( !params.skip_gtdbtk ) {
             ch_gtdbtk_summary = Channel.empty()
+            ch_gtdbtk_summaryperbin = Channel.empty()
             if ( gtdb ){
 
                 ch_gtdb_bins = ch_input_for_postbinning_bins_unbins
@@ -540,9 +541,12 @@ workflow SALTPROFILER {
                 )
                 ch_versions = ch_versions.mix(GTDBTK.out.versions.first())
                 ch_gtdbtk_summary = GTDBTK.out.summary
+                // ch_gtdbtk_summarypersample = GTDBTK.out.summarypersample
+                // ch_gtdbtk_summarypersample.view()
             }
         } else {
             ch_gtdbtk_summary = Channel.empty()
+            // ch_gtdbtk_summaryperbin = Channel.empty()
         }
 
         if ( ( !params.skip_binqc ) || !params.skip_quast || !params.skip_gtdbtk){
@@ -579,13 +583,15 @@ workflow SALTPROFILER {
             /*
             * Overview of salt tolerance genes
             */
+
             if ( !params.skip_saltgenes ) {
                 ch_genes = Channel.of("murB", "galE", "mazG", "betL")
-                ch_prokka_output = PROKKA.out.gff.join(PROKKA.out.fna)
+                ch_prokka_output = PROKKA.out.gff.combine(PROKKA.out.fna, by: 0)
                 SALTGENES(
                     ch_genes,
                     ch_prokka_output,
-                    ch_short_reads
+                    ch_short_reads,
+                    ch_gtdbtk_summary
                 )
             ch_versions = ch_versions.mix(SALTGENES.out.versions.first())
             }
