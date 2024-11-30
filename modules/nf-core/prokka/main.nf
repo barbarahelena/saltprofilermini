@@ -48,6 +48,8 @@ process PROKKA {
         $prodigal_tf \\
         $fasta
 
+    rm -r tmp
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         prokka: \$(echo \$(prokka --version 2>&1) | sed 's/^.*prokka //')
