@@ -11,7 +11,7 @@ include { SALTGENES_BWAMEM2BUILD    } from '../../modules/local/saltgenes/bwamem
 include { SALTGENES_BWAMEM2ALIGN    } from '../../modules/local/saltgenes/bwamem2align'
 include { SALTGENES_ADDTAX          } from '../../modules/local/saltgenes/addtax'
 include { SALTGENES_PLOTGENES       } from '../../modules/local/saltgenes/plotgenes'
-include { COMBINE_TSV as MERGETAB   } from '../../modules/local/saltgenes/combine_tsv'
+include { COMBINE_TSV as MERGETAB   } from '../../modules/local/combine_tsv'
 
 workflow SALTGENES {
 
