@@ -27,6 +27,7 @@ workflow MAIN {
     take:
         raw_short_reads  // channel: samplesheet read in from --input
         input_assemblies
+        input_genes
 
     main:
 
@@ -35,7 +36,8 @@ workflow MAIN {
     //
     SALTPROFILER (
         raw_short_reads,  // channel: samplesheet read in from --input
-        input_assemblies
+        input_assemblies,
+        input_genes
     )
 
     emit:
@@ -70,7 +72,8 @@ workflow {
     //
     SALTPROFILER (
         PIPELINE_INITIALISATION.out.raw_short_reads,
-        PIPELINE_INITIALISATION.out.input_assemblies
+        PIPELINE_INITIALISATION.out.input_assemblies,
+        PIPELINE_INITIALISATION.out.input_genes
     )
 
     //
