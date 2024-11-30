@@ -110,6 +110,7 @@ workflow SALTPROFILER {
     take:
     ch_raw_short_reads // channel: samplesheet read in from --input
     ch_input_assemblies
+    ch_input_genes
 
     main:
 
@@ -129,8 +130,8 @@ workflow SALTPROFILER {
     ================================================================================
     */
 
-    FASTQC_RAW ( ch_raw_short_reads )
-    ch_versions = ch_versions.mix(FASTQC_RAW.out.versions.first())
+    // FASTQC_RAW ( ch_raw_short_reads )
+    // ch_versions = ch_versions.mix(FASTQC_RAW.out.versions.first())
 
     ch_bowtie2_removal_host_multiqc = Channel.empty()
     if ( !params.assembly_input ) {
@@ -206,12 +207,12 @@ workflow SALTPROFILER {
             ch_short_reads_phixremoved = ch_short_reads_hostremoved
         }
 
-        if (!(params.keep_phix && params.skip_clipping && !(params.host_genome || params.host_fasta))) {
-            FASTQC_TRIMMED (
-                ch_short_reads_phixremoved
-            )
-            ch_versions = ch_versions.mix(FASTQC_TRIMMED.out.versions)
-        }
+        // if (!(params.keep_phix && params.skip_clipping && !(params.host_genome || params.host_fasta))) {
+        //     FASTQC_TRIMMED (
+        //         ch_short_reads_phixremoved
+        //     )
+        //     ch_versions = ch_versions.mix(FASTQC_TRIMMED.out.versions)
+        // }
 
         // Run/Lane merging
 
@@ -519,47 +520,6 @@ workflow SALTPROFILER {
         }
 
         /*
-         * GTDB-tk: taxonomic classifications using GTDB reference
-         */
-
-        if ( !params.skip_gtdbtk ) {
-            ch_gtdbtk_summary = Channel.empty()
-            ch_gtdbtk_summaryperbin = Channel.empty()
-            if ( gtdb ){
-
-                ch_gtdb_bins = ch_input_for_postbinning_bins_unbins
-                    .filter { meta, bins ->
-                        meta.domain != "eukarya"
-                    }
-
-                GTDBTK (
-                    ch_gtdb_bins,
-                    ch_busco_summary,
-                    ch_checkm_summary,
-                    gtdb,
-                    gtdb_mash
-                )
-                ch_versions = ch_versions.mix(GTDBTK.out.versions.first())
-                ch_gtdbtk_summary = GTDBTK.out.summary
-                // ch_gtdbtk_summarypersample = GTDBTK.out.summarypersample
-                // ch_gtdbtk_summarypersample.view()
-            }
-        } else {
-            ch_gtdbtk_summary = Channel.empty()
-            // ch_gtdbtk_summaryperbin = Channel.empty()
-        }
-
-        if ( ( !params.skip_binqc ) || !params.skip_quast || !params.skip_gtdbtk){
-            BIN_SUMMARY (
-                ch_input_for_binsummary,
-                ch_busco_summary.ifEmpty([]),
-                ch_checkm_summary.ifEmpty([]),
-                ch_quast_bins_summary.ifEmpty([]),
-                ch_gtdbtk_summary.ifEmpty([]),
-            )
-        }
-
-        /*
          * Prokka: Genome annotation
          */
 
@@ -580,22 +540,59 @@ workflow SALTPROFILER {
             )
             ch_versions = ch_versions.mix(PROKKA.out.versions.first())
 
-            /*
-            * Overview of salt tolerance genes
-            */
-
-            if ( !params.skip_saltgenes ) {
-                ch_genes = Channel.of("murB", "galE", "mazG", "betL")
-                ch_prokka_output = PROKKA.out.gff.combine(PROKKA.out.fna, by: 0)
-                SALTGENES(
-                    ch_genes,
-                    ch_prokka_output,
-                    ch_short_reads,
-                    ch_gtdbtk_summary
-                )
-            ch_versions = ch_versions.mix(SALTGENES.out.versions.first())
-            }
         }
+
+        /*
+         * GTDB-tk: taxonomic classifications using GTDB reference
+         */
+
+        if ( !params.skip_gtdbtk ) {
+            ch_gtdbtk_summary = Channel.empty()
+            ch_gtdbtk_summaryperbin = Channel.empty()
+            if ( gtdb ){
+
+                ch_gtdb_bins = ch_input_for_postbinning_bins_unbins
+
+                GTDBTK (
+                    ch_gtdb_bins,
+                    ch_busco_summary,
+                    ch_checkm_summary,
+                    gtdb,
+                    gtdb_mash
+                )
+                ch_versions = ch_versions.mix(GTDBTK.out.versions.first())
+                ch_gtdbtk_summary = GTDBTK.out.summary
+
+                /*
+                * Overview of salt tolerance genes
+                */
+
+                if ( !params.skip_saltgenes ) {
+                    ch_prokka_output = PROKKA.out.gff.combine(PROKKA.out.fna, by: 0)
+                    SALTGENES(
+                        ch_input_genes,
+                        ch_prokka_output,
+                        ch_short_reads,
+                        GTDBTK.out.summarypersample
+                    )
+                ch_versions = ch_versions.mix(SALTGENES.out.versions.first())
+                }
+            }
+
+        } else {
+            ch_gtdbtk_summary = Channel.empty()
+        }
+
+        if ( ( !params.skip_binqc ) || !params.skip_quast || !params.skip_gtdbtk){
+            BIN_SUMMARY (
+                ch_input_for_binsummary,
+                ch_busco_summary.ifEmpty([]),
+                ch_checkm_summary.ifEmpty([]),
+                ch_quast_bins_summary.ifEmpty([]),
+                ch_gtdbtk_summary.ifEmpty([]),
+            )
+        }
+
     }
 
 
@@ -642,7 +639,7 @@ workflow SALTPROFILER {
         )
     )
 
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC_RAW.out.zip.collect{it[1]}.ifEmpty([]))
+    // ch_multiqc_files = ch_multiqc_files.mix(FASTQC_RAW.out.zip.collect{it[1]}.ifEmpty([]))
 
     if (!params.assembly_input) {
 
@@ -654,9 +651,9 @@ workflow SALTPROFILER {
             ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.json.collect{it[1]}.ifEmpty([]))
         }
 
-        if (!(params.keep_phix && params.skip_clipping && !(params.host_genome || params.host_fasta))) {
-            ch_multiqc_files = ch_multiqc_files.mix(FASTQC_TRIMMED.out.zip.collect{it[1]}.ifEmpty([]))
-        }
+        // if (!(params.keep_phix && params.skip_clipping && !(params.host_genome || params.host_fasta))) {
+        //     ch_multiqc_files = ch_multiqc_files.mix(FASTQC_TRIMMED.out.zip.collect{it[1]}.ifEmpty([]))
+        // }
 
         if ( params.host_fasta || params.host_genome ) {
             ch_multiqc_files = ch_multiqc_files.mix(BOWTIE2_HOST_REMOVAL_ALIGN.out.log.collect{it[1]}.ifEmpty([]))
