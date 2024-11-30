@@ -86,6 +86,8 @@ workflow GTDBTK {
         gtdb_mash
     )
 
+    GTDBTK_CLASSIFYWF.out.summary.view()
+
     GTDBTK_SUMMARY (
         ch_filtered_bins.discarded.map{it[1]}.collect().ifEmpty([]),
         GTDBTK_CLASSIFYWF.out.summary.map{it[1]}.collect().ifEmpty([]),
