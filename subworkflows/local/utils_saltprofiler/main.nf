@@ -73,10 +73,6 @@ workflow PIPELINE_INITIALISATION {
         nextflow_cli_args
     )
 
-    // Note: normally validateInputParameters() goes here, but
-    // as we need to use information from samplesheet from the input channel
-    // moved it below
-
     //
     // Create channels from input file provided through params.input and params.assembly_input
     //
@@ -143,11 +139,20 @@ workflow PIPELINE_INITIALISATION {
             }
     }
 
-
+    // Validate genes of interest input when supplied
+    if ( params.genes_input )  { //  string: Path to csv with genes of interest
+        ch_input_genes = Channel 
+            .fromPath( params.genes_input )
+            .splitCsv(header: true)
+            .map { row -> row.genes }
+    } else {
+        ch_input_genes = Channel.empty()
+    }
 
     emit:
     raw_short_reads  = ch_raw_short_reads
     input_assemblies = ch_input_assemblies
+    input_genes = ch_input_genes
     versions    = ch_versions
 }
 
