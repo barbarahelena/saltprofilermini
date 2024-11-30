@@ -1,11 +1,11 @@
-process SALTGENES_BOWTIE2ALIGN {
+process SALTGENES_BWAMEM2ALIGN {
     tag "$subjectid"
     label 'process_medium'
 
-    conda "bioconda::bowtie2=2.4.2 bioconda::samtools=1.11 conda-forge::pigz=2.3.4"
+    conda "bioconda::bwa-mem2=2.2.1,bioconda::htslib=1.19.1,bioconda::samtools=1.19.2"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/mulled-v2-ac74a7f02cebcfcc07d8e8d1d750af9c83b4d45a:577a697be67b5ae9b16f637fd723b8263a3898b3-0':
-        'biocontainers/mulled-v2-ac74a7f02cebcfcc07d8e8d1d750af9c83b4d45a:577a697be67b5ae9b16f637fd723b8263a3898b3-0' }"
+        'https://depot.galaxyproject.org/singularity/mulled-v2-e5d375990341c5aef3c9aff74f96f66f65375ef6:2d15960ccea84e249a150b7f5d4db3a42fc2d6c3-0':
+        'biocontainers/mulled-v2-e5d375990341c5aef3c9aff74f96f66f65375ef6:2d15960ccea84e249a150b7f5d4db3a42fc2d6c3-0' }"
 
     input:
     tuple val(subjectid), path(index), path(gff), path(reads)
@@ -23,18 +23,18 @@ process SALTGENES_BOWTIE2ALIGN {
     def prefix = task.ext.prefix ?: "${subjectid}"
 
     """
-    INDEX=\$(find -L ./ -name "*.rev.1.bt2l" -o -name "*.rev.1.bt2" | sed 's/.rev.1.bt2l//' | sed 's/.rev.1.bt2//')
-    bowtie2 \\
-        -p "${task.cpus}" \\
-        -x \$INDEX \\
+    INDEX=`find -L ./ -name "*.amb" | sed 's/\\.amb\$//'`
+    bwa-mem2 mem \\
+        -t "${task.cpus}" \\
+        \$INDEX \\
         $args \\
-        -1 "${reads[0]}" -2 "${reads[1]}" \\
+        "${reads[0]}" "${reads[1]}" \\
         1> /dev/null \\
-        2> ${subjectid}.bowtie2.log > bowtieout.sam
-    
-    ls -lh bowtieout.sam
+        2> ${subjectid}.bwa-mem2.log > bwaout.sam
 
-    samtools view -@ "${task.cpus}" -bS bowtieout.sam > output.bam
+    ls -lh bwaout.sam
+
+    samtools view -@ "${task.cpus}" -bS bwaout.sam -F 256 -q 5 > output.bam
     samtools sort -@ "${task.cpus}" -o ${subjectid}.bam output.bam
     samtools index ${subjectid}.bam
 
@@ -42,7 +42,7 @@ process SALTGENES_BOWTIE2ALIGN {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        bowtie2: \$(echo \$(bowtie2 --version 2>&1) | sed 's/^.*bowtie2-align-s version //; s/ .*\$//')
+        bwa-mem2: \$(echo \$(bwa-mem2 --version 2>&1) | sed 's/^.* //')
         samtools: \$(echo \$(samtools --version 2>&1) | sed 's/^.*samtools //; s/Using.*\$//')
         pigz: \$( pigz --version 2>&1 | sed 's/pigz //g' )
     END_VERSIONS
@@ -54,10 +54,11 @@ process SALTGENES_BOWTIE2ALIGN {
 
     """
     touch ${subjectid}.bam
+    touch counts_${subjectid}.txt
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        bowtie2: \$(echo \$(bowtie2 --version 2>&1) | sed 's/^.*bowtie2-align-s version //; s/ .*\$//')
+        bwa-mem2: \$(echo \$(bwa-mem2 --version 2>&1) | sed 's/^.* //')
         samtools: \$(echo \$(samtools --version 2>&1) | sed 's/^.*samtools //; s/Using.*\$//')
         pigz: \$( pigz --version 2>&1 | sed 's/pigz //g' )
     END_VERSIONS
