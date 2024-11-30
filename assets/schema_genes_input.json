@@ -1,0 +1,19 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://raw.githubusercontent.com/nf-core/mag/master/assets/schema_input.json",
+    "title": "nf-core/mag pipeline - params.input schema",
+    "description": "Schema for the file provided with params.input",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "genes": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "Genes must be provided and cannot contain spaces",
+                "meta": ["genes"]
+            }
+        },
+        "required": ["genes"]
+    }
+}
