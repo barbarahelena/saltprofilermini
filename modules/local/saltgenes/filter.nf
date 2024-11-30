@@ -30,9 +30,6 @@ process SALTGENES_FILTER {
         -bed ${prefix}.gff \\
         -fi ${fasta} \\
         -fo ${prefix}.fasta
-    
-    # awk -v sample_id="bin_${meta.id}" -v gene_id="gene_${gene}" '/^>/ {print ">" sample_id "_" gene_id "_" substr(\$0, 2)} !/^>/ {print}' \\
-    #        ${prefix}.fasta > ${prefix}_fixed.fasta
 
     awk -v sample_id="bin_${meta.id}" -v gene_id="gene_${gene}" ' 
     /^>/ {
@@ -43,6 +40,8 @@ process SALTGENES_FILTER {
     !/^>/ { 
         print 
     }' ${prefix}.fasta > ${prefix}_fixed.fasta
+
+    rm ${prefix}.fasta
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
