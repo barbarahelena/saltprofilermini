@@ -619,7 +619,7 @@
                 },
                 "binqc_tool": {
                     "type": "string",
-                    "default": "busco",
+                    "default": "checkm",
                     "description": "Specify which tool for bin quality-control validation to use.",
                     "enum": ["busco", "checkm"]
                 },
