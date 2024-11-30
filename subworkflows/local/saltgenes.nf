@@ -7,8 +7,11 @@ include { SALTGENES_CATPERGENE      } from '../../modules/local/saltgenes/catper
 include { SALTGENES_CATPERSAMPLE    } from '../../modules/local/saltgenes/catpersample'
 include { SALTGENES_MUSCLE          } from '../../modules/local/saltgenes/muscle'
 include { SALTGENES_FASTTREE        } from '../../modules/local/saltgenes/fasttree'
-include { SALTGENES_BOWTIE2BUILD    } from '../../modules/local/saltgenes/bowtie2build'
-include { SALTGENES_BOWTIE2ALIGN    } from '../../modules/local/saltgenes/bowtie2align'
+include { SALTGENES_BWAMEM2BUILD    } from '../../modules/local/saltgenes/bwamem2build'
+include { SALTGENES_BWAMEM2ALIGN    } from '../../modules/local/saltgenes/bwamem2align'
+include { SALTGENES_ADDTAX          } from '../../modules/local/saltgenes/addtax'
+include { SALTGENES_PLOTGENES       } from '../../modules/local/saltgenes/plotgenes'
+include { COMBINE_TSV as MERGETAB   } from '../../modules/local/saltgenes/combine_tsv'
 
 workflow SALTGENES {
 
@@ -47,24 +50,42 @@ workflow SALTGENES {
                                     def gfflist = gff.collect()
                                     tuple( metadata, gene, fasta, gff )
                                     }
-    SALTGENES_MUSCLE( ch_fastapergene )
-    SALTGENES_FASTTREE( SALTGENES_MUSCLE.out.msa )
+    
+    // SALTGENES_MUSCLE( ch_fastapergene )
+    // SALTGENES_FASTTREE( SALTGENES_MUSCLE.out.msa )
 
     // Concatenate the fasta/gffs per sample
     ch_genespersample = SALTGENES_CATPERGENE.out.mergedseqs.groupTuple(by: 0)
     SALTGENES_CATPERSAMPLE( ch_genespersample )
 
-    // Mapping with Bowtie2: now per sample because seemed more efficient
-    SALTGENES_BOWTIE2BUILD( SALTGENES_CATPERSAMPLE.out.mergedgenes )
-    ch_versions = ch_versions.mix(SALTGENES_BOWTIE2BUILD.out.versions.first())
+    // Mapping with BWA-mem2 per sample
+    SALTGENES_BWAMEM2BUILD( SALTGENES_CATPERSAMPLE.out.mergedgenes )
+    ch_versions = ch_versions.mix(SALTGENES_BWAMEM2BUILD.out.versions.first())
 
     // Combine the index channel, reads channel and gff channel (annotation)
     ch_reads = reads.map { metadata, reads -> tuple( metadata.id, reads ) }
-    ch_indexgffreads = SALTGENES_BOWTIE2BUILD.out.index
+    ch_indexgffreads = SALTGENES_BWAMEM2BUILD.out.index
                             .combine(ch_reads, by: 0)
 
-    SALTGENES_BOWTIE2ALIGN( ch_indexgffreads )
-    ch_versions = ch_versions.mix(SALTGENES_BOWTIE2ALIGN.out.versions.first())
+    SALTGENES_BWAMEM2ALIGN( ch_indexgffreads )
+    ch_versions = ch_versions.mix(SALTGENES_BWAMEM2ALIGN.out.versions.first())
+
+    // Add tax to count table
+    tax.view()
+    ch_tax = tax.map{ meta, summary -> tuple(meta.id, summary) }
+    ch_counts = SALTGENES_BWAMEM2ALIGN.out.stats.combine( ch_tax, by: 0 )
+    // ch_counts.view()
+
+    // SALTGENES_ADDTAX( ch_counts )
+
+    // Plot tree with tax
+    // ch_tree = SALTGENES_FASTTREE.out.tree.join( tax, by = 0 )
+    // ch_tree.view()
+    // SALTGENES_PLOTGENES( ch_tree )
+
+    // Merge all count tables
+    // ch_counttables = SALTGENES_ADDTAX.out.counttab.collect()
+    // MERGETAB( ch_counttables )
 
     emit:
     versions = ch_versions                     // channel: [ versions.yml ]
