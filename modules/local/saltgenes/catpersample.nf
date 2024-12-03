@@ -1,7 +1,6 @@
 process SALTGENES_CATPERSAMPLE {
     tag "${subjectid}"
-    label 'process_low'
-
+    
     conda "conda-forge::sed=4.7"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/ubuntu:20.04' :

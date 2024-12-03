@@ -1,6 +1,8 @@
 process PRODIGAL {
     tag "$meta.id"
-    label 'process_single'
+    cpus 1
+    memory '200.MB'
+    time '2.h'
 
     conda "bioconda::prodigal=2.6.3 conda-forge::pigz=2.6"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?

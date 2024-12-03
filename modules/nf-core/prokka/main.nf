@@ -1,6 +1,5 @@
 process PROKKA {
     tag "$meta.id"
-    label 'process_low'
 
     conda "bioconda::prokka=1.14.6"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?

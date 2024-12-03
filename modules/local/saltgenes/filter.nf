@@ -1,6 +1,5 @@
 process SALTGENES_FILTER {
     tag "$meta.id"
-    label 'process_single'
 
     conda "bioconda::bedtools=2.31.1"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?

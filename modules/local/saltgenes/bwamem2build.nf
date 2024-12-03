@@ -1,6 +1,5 @@
 process SALTGENES_BWAMEM2BUILD {
     tag "$subjectid"
-    label 'process_medium'
 
     conda "bioconda::bwa-mem2=2.2.1"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?

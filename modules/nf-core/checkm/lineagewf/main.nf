@@ -1,8 +1,5 @@
 process CHECKM_LINEAGEWF {
     tag "$meta.id"
-    cpus 4
-    memory '36.GB'
-    time '2.h'
 
     conda "bioconda::checkm-genome=1.2.1"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
