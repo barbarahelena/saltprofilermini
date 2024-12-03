@@ -1,6 +1,5 @@
 process SALTGENES_BWAMEM2ALIGN {
     tag "$subjectid"
-    label 'process_medium'
 
     conda "bioconda::bwa-mem2=2.2.1,bioconda::htslib=1.19.1,bioconda::samtools=1.19.2"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -39,6 +38,8 @@ process SALTGENES_BWAMEM2ALIGN {
     samtools index ${subjectid}.bam
 
     samtools idxstats ${subjectid}.bam > counts_${subjectid}.txt
+
+    rm bwaout.sam
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
