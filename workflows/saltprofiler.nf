@@ -18,7 +18,6 @@ include { BINNING_PREPARATION             } from '../subworkflows/local/binning_
 include { BINNING                         } from '../subworkflows/local/binning'
 include { BUSCO_QC                        } from '../subworkflows/local/busco_qc'
 include { CHECKM_QC                       } from '../subworkflows/local/checkm_qc'
-include { GTDBTK                          } from '../subworkflows/local/gtdbtk'
 include { DEPTHS                          } from '../subworkflows/local/depths'
 include { SALTGENES                       } from '../subworkflows/local/saltgenes'
 
@@ -52,6 +51,10 @@ include { SPADES                                              } from '../modules
 include { QUAST                                               } from '../modules/local/quast'
 include { QUAST_BINS                                          } from '../modules/local/quast_bins'
 include { QUAST_BINS_SUMMARY                                  } from '../modules/local/quast_bins_summary'
+include { CAT_DB                                              } from '../modules/local/cat_db'
+include { CAT_DB_GENERATE                                     } from '../modules/local/cat_db_generate'
+include { CAT                                                 } from '../modules/local/cat'
+include { CAT_SUMMARY                                         } from "../modules/local/cat_summary"
 include { BIN_SUMMARY                                         } from '../modules/local/bin_summary'
 include { COMBINE_TSV as COMBINE_SUMMARY_TSV                  } from '../modules/local/combine_tsv'
 
@@ -83,18 +86,16 @@ if(params.checkm_db) {
     ch_checkm_db = file(params.checkm_db, checkIfExists: true)
 }
 
+if(params.cat_db){
+    ch_cat_db_file = Channel
+        .value(file( "${params.cat_db}" ))
+} else {
+    ch_cat_db_file = Channel.empty()
+}
+
 if(!params.keep_phix) {
     ch_phix_db_file = Channel
         .value(file( "${params.phix_reference}" ))
-}
-
-gtdb = ( params.skip_binqc || params.skip_gtdbtk ) ? false : params.gtdb_db
-
-if (gtdb) {
-    gtdb = file( "${gtdb}", checkIfExists: true)
-    gtdb_mash = params.gtdb_mash ? file("${params.gtdb_mash}", checkIfExists: true) : []
-} else {
-    gtdb = []
 }
 
 /*
@@ -540,60 +541,73 @@ workflow SALTPROFILER {
             )
             ch_versions = ch_versions.mix(PROKKA.out.versions.first())
 
-        }
 
-        /*
-         * GTDB-tk: taxonomic classifications using GTDB reference
-         */
-
-        if ( !params.skip_gtdbtk ) {
-            ch_gtdbtk_summary = Channel.empty()
-            ch_gtdbtk_summaryperbin = Channel.empty()
-            if ( gtdb ){
-
-                ch_gtdb_bins = ch_input_for_postbinning_bins_unbins
-
-                GTDBTK (
-                    ch_gtdb_bins,
-                    ch_busco_summary,
-                    ch_checkm_summary,
-                    gtdb,
-                    gtdb_mash
-                )
-                ch_versions = ch_versions.mix(GTDBTK.out.versions.first())
-                ch_gtdbtk_summary = GTDBTK.out.summary
-
-                /*
-                * Overview of salt tolerance genes
-                */
-
-                if ( !params.skip_saltgenes ) {
-                    ch_prokka_output = PROKKA.out.gff.combine(PROKKA.out.fna, by: 0)
-                    SALTGENES(
-                        ch_input_genes,
-                        ch_prokka_output,
-                        ch_short_reads,
-                        GTDBTK.out.summarypersample
-                    )
-                ch_versions = ch_versions.mix(SALTGENES.out.versions.first())
+            /*
+            * CAT: taxonomic classification of bins
+            */
+            ch_cat_db = Channel.empty()
+            if ( !params.skip_taxbins ) {
+                if (params.cat_db){
+                    CAT_DB ( ch_cat_db_file )
+                    ch_cat_db = CAT_DB.out.db
+                } else if (params.cat_db_generate){
+                    CAT_DB_GENERATE ()
+                    ch_cat_db = CAT_DB_GENERATE.out.db
                 }
+                CAT (
+                    ch_input_for_postbinning_bins_unbins,
+                    ch_cat_db
+                )
+                // Group all classification results for each sample in a single file
+                ch_cat_summary = CAT.out.tax_classification_names
+                    .collectFile(keepHeader: true) {
+                            meta, classification ->
+                            ["${meta.id}.txt", classification]
+                    }
+                // Group all classification results for the whole run in a single file
+                CAT_SUMMARY(
+                    ch_cat_summary.collect()
+                )
+                ch_versions = ch_versions.mix(CAT.out.versions.first())
+                ch_versions = ch_versions.mix(CAT_SUMMARY.out.versions)
+
+                // If CAT is not run, then the CAT global summary should be an empty channel
+                if ( params.cat_db_generate || params.cat_db) {
+                    ch_cat_global_summary = CAT_SUMMARY.out.combined
+                } else {
+                    ch_cat_global_summary = Channel.empty()
+                }
+
+                    /*
+                    * Overview of salt tolerance genes
+                    */
+
+                    if ( !params.skip_saltgenes ) {
+                        ch_prokka_output = PROKKA.out.gff.combine(PROKKA.out.fna, by: 0)
+                        SALTGENES(
+                            ch_input_genes,
+                            ch_prokka_output,
+                            ch_short_reads,
+                            CAT.out.tax_classification_names
+                        )
+                    ch_versions = ch_versions.mix(SALTGENES.out.versions.first())
+                    }
+            } else {
+                ch_cat_global_summary = Channel.empty()
             }
 
-        } else {
-            ch_gtdbtk_summary = Channel.empty()
+            if ( ( !params.skip_binqc ) || !params.skip_quast || !params.skip_taxbins){
+                BIN_SUMMARY (
+                    ch_input_for_binsummary,
+                    ch_busco_summary.ifEmpty([]),
+                    ch_checkm_summary.ifEmpty([]),
+                    ch_quast_bins_summary.ifEmpty([]),
+                    ch_cat_global_summary.ifEmpty([])
+                )
+            }
         }
-
-        if ( ( !params.skip_binqc ) || !params.skip_quast || !params.skip_gtdbtk){
-            BIN_SUMMARY (
-                ch_input_for_binsummary,
-                ch_busco_summary.ifEmpty([]),
-                ch_checkm_summary.ifEmpty([]),
-                ch_quast_bins_summary.ifEmpty([]),
-                ch_gtdbtk_summary.ifEmpty([]),
-            )
-        }
-
     }
+        
 
 
     //
