@@ -1,4 +1,5 @@
 process CAT {
+    maxForks 3
     tag "${meta.assembler}-${meta.binner}-${meta.id}-${db_name}"
 
     conda "bioconda::cat=6.0.1"

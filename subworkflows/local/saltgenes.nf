@@ -88,5 +88,6 @@ workflow SALTGENES {
     // MERGETAB( ch_counttables )
 
     emit:
+    counts = SALTGENES_BWAMEM2ALIGN.out.stats
     versions = ch_versions                     // channel: [ versions.yml ]
 }

@@ -7,16 +7,16 @@ process COMBINE_TSV {
         'biocontainers/bioawk:1.0--hed695b0_5' }"
 
     input:
-    path(bin_summaries)
+    path(summaries)
+    value(prefix)
 
     output:
     path("*.tsv")      , emit: combined
     path "versions.yml", emit: versions
 
     script:
-    def prefix = task.ext.prefix ?: "bin_depths_summary_combined"
     """
-    bioawk '(NR == 1) || (FNR > 1)' ${bin_summaries} > ${prefix}.tsv
+    bioawk '(NR == 1) || (FNR > 1)' ${summaries} > ${prefix}.tsv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

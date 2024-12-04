@@ -56,9 +56,9 @@ include { CAT_DB_GENERATE                                     } from '../modules
 include { CAT                                                 } from '../modules/local/cat'
 include { CAT_SUMMARY                                         } from "../modules/local/cat_summary"
 include { BIN_SUMMARY                                         } from '../modules/local/bin_summary'
-include { COMBINE_TSV as COMBINE_SUMMARY_TSV                  } from '../modules/local/combine_tsv'
 include { KRAKEN2                                             } from "../modules/local/kraken2"
 include { COMBINE_TSV as COMBINE_SUMMARY_TSV                  } from '../modules/local/combine_tsv'
+include { COMBINE_TSV as COMBINE_SUMMARY_TSV_SALTGENES        } from '../modules/local/combine_tsv'
 
 ////////////////////////////////////////////////////
 /* --  Create channel for reference databases  -- */
@@ -93,6 +93,14 @@ if(params.cat_db){
         .value(file( "${params.cat_db}" ))
 } else {
     ch_cat_db_file = Channel.empty()
+}
+
+if(params.kraken_db){
+    ch_kraken_db = Channel.value(file( "${params.kraken_db}"))
+    ch_taxtable = Channel.value(file( "${params.taxtable}"))
+} else {
+    ch_kraken_db = Channel.empty()
+    ch_taxtable = Channel.empty()
 }
 
 if(!params.keep_phix) {
@@ -553,28 +561,41 @@ workflow SALTPROFILER {
             ch_versions = ch_versions.mix(CAT.out.versions.first())
             ch_versions = ch_versions.mix(CAT_SUMMARY.out.versions)
         }
-            // If CAT is not run, then the CAT global summary should be an empty channel
-            if ( params.cat_db_generate || params.cat_db ) {
-                ch_cat_global_summary = CAT_SUMMARY.out.combined
-            } else {
-                ch_cat_global_summary = Channel.empty()
-            }
-        if(params.taxtool == 'kraken'){
-            /*
-            * KRAKEN: taxonomic classification of bins
-            */
-            KRAKEN2 (
-                ch_input_for_postbinning_bins_unbins,
-                ch_kraken_db,
-                ch_taxtable
-            )
-            ch_versions = ch_versions.mix(KRAKEN2.out.versions.first())
-            
-            // Group all classification results for the whole run in a single file
-            COMBINE_SUMMARY_TSV ( KRAKEN2.out.tax.map{it[1]}.collect() )
+        // If CAT is not run, then the CAT global summary should be an empty channel
+        if ( params.cat_db_generate || params.cat_db ) {
+            ch_cat_global_summary = CAT_SUMMARY.out.combined
+            ch_taxonomy = CAT_SUMMARY.out.combined
+        } else {
+            ch_cat_global_summary = Channel.empty()
         }
+        
+        if ( params.taxtool == 'kraken' ) {
+                /*
+                * KRAKEN: taxonomic classification of bins
+                */
+                KRAKEN2 (
+                    ch_input_for_postbinning_bins_unbins,
+                    ch_kraken_db,
+                    ch_taxtable
+                )
+                ch_versions = ch_versions.mix(KRAKEN2.out.versions.first())
+                
+                // Group all classification results for the whole run in a single file
+                COMBINE_SUMMARY_TSV ( KRAKEN2.out.tax.map{it[1]}.collect(), "kraken_summary" )
+
+                ch_taxonomy = COMBINE_SUMMARY_TSV.out.combined
+            }
         }
 
+        if ( ( !params.skip_binqc ) || !params.skip_quast || !params.skip_taxbins){
+                BIN_SUMMARY (
+                    ch_input_for_binsummary,
+                    ch_busco_summary.ifEmpty([]),
+                    ch_checkm_summary.ifEmpty([]),
+                    ch_quast_bins_summary.ifEmpty([]),
+                    ch_cat_global_summary.ifEmpty([])
+                )
+        }
         /*
          * Prokka: Genome annotation
          */
@@ -606,24 +627,14 @@ workflow SALTPROFILER {
                             ch_input_genes,
                             ch_prokka_output,
                             ch_short_reads,
-                            CAT.out.tax_classification_names
+                            ch_taxonomy
                         )
                     ch_versions = ch_versions.mix(SALTGENES.out.versions.first())
-                    }
-            } else {
-                ch_cat_global_summary = Channel.empty()
-            }
 
-            if ( ( !params.skip_binqc ) || !params.skip_quast || !params.skip_taxbins){
-                BIN_SUMMARY (
-                    ch_input_for_binsummary,
-                    ch_busco_summary.ifEmpty([]),
-                    ch_checkm_summary.ifEmpty([]),
-                    ch_quast_bins_summary.ifEmpty([]),
-                    ch_cat_global_summary.ifEmpty([])
-                )
+                    COMBINE_SUMMARY_TSV_SALTGENES ( SALTGENES.out.counts.map{ it[1] }.collect(), "saltgenes_summary" )
+
+                    }
             }
-        }
     }
         
 
