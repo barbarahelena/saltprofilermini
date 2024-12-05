@@ -41,8 +41,7 @@ workflow DEPTHS {
         .transpose()
         .map {
             meta_combine, meta, bins, depth ->
-            def meta_new = meta - meta.subMap('domain','refinement')
-            [meta_new, bins, depth]
+            [meta, bins, depth]
         }
         .groupTuple(by: [0,2])
         .map {

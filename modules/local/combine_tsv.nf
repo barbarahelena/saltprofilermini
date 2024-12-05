@@ -8,7 +8,7 @@ process COMBINE_TSV {
 
     input:
     path(summaries)
-    value(prefix)
+    val(prefix)
 
     output:
     path("*.tsv")      , emit: combined

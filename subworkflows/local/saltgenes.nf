@@ -2,16 +2,17 @@
  * Salt gene profiler
  */
 
-include { SALTGENES_FILTER          } from '../../modules/local/saltgenes/filter'
-include { SALTGENES_CATPERGENE      } from '../../modules/local/saltgenes/catpergene'
-include { SALTGENES_CATPERSAMPLE    } from '../../modules/local/saltgenes/catpersample'
-include { SALTGENES_MUSCLE          } from '../../modules/local/saltgenes/muscle'
-include { SALTGENES_FASTTREE        } from '../../modules/local/saltgenes/fasttree'
-include { SALTGENES_BWAMEM2BUILD    } from '../../modules/local/saltgenes/bwamem2build'
-include { SALTGENES_BWAMEM2ALIGN    } from '../../modules/local/saltgenes/bwamem2align'
-include { SALTGENES_ADDTAX          } from '../../modules/local/saltgenes/addtax'
-include { SALTGENES_PLOTGENES       } from '../../modules/local/saltgenes/plotgenes'
-include { COMBINE_TSV as MERGETAB   } from '../../modules/local/combine_tsv'
+include { SALTGENES_FILTER                  } from '../../modules/local/saltgenes/filter'
+include { SALTGENES_CATPERGENE              } from '../../modules/local/saltgenes/catpergene'
+include { SALTGENES_CATPERSAMPLE            } from '../../modules/local/saltgenes/catpersample'
+include { SALTGENES_MUSCLE                  } from '../../modules/local/saltgenes/muscle'
+include { SALTGENES_FASTTREE                } from '../../modules/local/saltgenes/fasttree'
+include { SALTGENES_BWAMEM2BUILD            } from '../../modules/local/saltgenes/bwamem2build'
+include { SALTGENES_BWAMEM2ALIGN            } from '../../modules/local/saltgenes/bwamem2align'
+include { SALTGENES_ADDTAX                  } from '../../modules/local/saltgenes/addtax'
+include { SALTGENES_PLOTGENES               } from '../../modules/local/saltgenes/plotgenes'
+include { COMBINE_TSV as COMBINE_SALTGENES  } from '../modules/local/combine_tsv'
+include { MERGE_ALLTAB                      } from '../modules/local/merge_alltab'
 
 workflow SALTGENES {
 
@@ -44,12 +45,12 @@ workflow SALTGENES {
     ch_versions = ch_versions.mix(SALTGENES_CATPERGENE.out.versions.first())
 
     // MSA and tree of sequences per gene
-    ch_fastapergene = SALTGENES_CATPERGENE.out.mergedseqs 
-                            .map { metadata, gene, fasta, gff -> 
-                                    def fastalist = fasta.collect()
-                                    def gfflist = gff.collect()
-                                    tuple( metadata, gene, fasta, gff )
-                                    }
+    // ch_fastapergene = SALTGENES_CATPERGENE.out.mergedseqs 
+    //                         .map { metadata, gene, fasta, gff -> 
+    //                                 def fastalist = fasta.collect()
+    //                                 def gfflist = gff.collect()
+    //                                 tuple( metadata, gene, fasta, gff )
+    //                                 }
     
     // SALTGENES_MUSCLE( ch_fastapergene )
     // SALTGENES_FASTTREE( SALTGENES_MUSCLE.out.msa )
@@ -70,22 +71,13 @@ workflow SALTGENES {
     SALTGENES_BWAMEM2ALIGN( ch_indexgffreads )
     ch_versions = ch_versions.mix(SALTGENES_BWAMEM2ALIGN.out.versions.first())
 
-    // Add tax to count table
-    tax.view()
-    ch_tax = tax.map{ meta, summary -> tuple(meta.id, summary) }
-    ch_counts = SALTGENES_BWAMEM2ALIGN.out.stats.combine( ch_tax, by: 0 )
-    // ch_counts.view()
+    // Merge saltgene count tables
+    COMBINE_SALTGENES ( SALTGENES.out.counts.map{ it[1] }.collect(), "saltgenes_summary" )
 
-    // SALTGENES_ADDTAX( ch_counts )
+    // Merge saltgene table with depth-and-tax table
+    MERGE_ALLTAB ( COMBINE_SALTGENES.out.combined, tax )
 
-    // Plot tree with tax
-    // ch_tree = SALTGENES_FASTTREE.out.tree.join( tax, by = 0 )
-    // ch_tree.view()
-    // SALTGENES_PLOTGENES( ch_tree )
-
-    // Merge all count tables
-    // ch_counttables = SALTGENES_ADDTAX.out.counttab.collect()
-    // MERGETAB( ch_counttables )
+    // MSA and tree per gene?
 
     emit:
     counts = SALTGENES_BWAMEM2ALIGN.out.stats
