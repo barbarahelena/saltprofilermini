@@ -73,7 +73,7 @@ process KRAKEN2 {
             taxonomy_name="Unknown"
         else
             # Use awk to find exact match and extract the second column
-            taxonomy_name=\$(awk -v tid="\$taxid" '\$1 == tid {print \$2; exit}' "${taxonomy}")
+            taxonomy_name=\$(awk -F'\t' -v tid="\$taxid" '\$1 == tid {for (i = 2; i <= NF; i++) printf "%s ", \$i; print ""; exit}' "${taxonomy}")
             if [ -z "\$taxonomy_name" ]; then
                 echo "Warning: No exact match found for TaxID \$taxid. Setting taxonomy to 'Unknown'"
                 taxonomy_name="Unknown"
