@@ -11,8 +11,8 @@ include { SALTGENES_BWAMEM2BUILD            } from '../../modules/local/saltgene
 include { SALTGENES_BWAMEM2ALIGN            } from '../../modules/local/saltgenes/bwamem2align'
 include { SALTGENES_ADDTAX                  } from '../../modules/local/saltgenes/addtax'
 include { SALTGENES_PLOTGENES               } from '../../modules/local/saltgenes/plotgenes'
-include { COMBINE_TSV as COMBINE_SALTGENES  } from '../modules/local/combine_tsv'
-include { MERGE_ALLTAB                      } from '../modules/local/merge_alltab'
+include { COMBINE_TSV as COMBINE_SALTGENES  } from '../../modules/local/combine_tsv'
+include { MERGE_ALLTAB                      } from '../../modules/local/merge_alltab'
 
 workflow SALTGENES {
 
@@ -72,7 +72,7 @@ workflow SALTGENES {
     ch_versions = ch_versions.mix(SALTGENES_BWAMEM2ALIGN.out.versions.first())
 
     // Merge saltgene count tables
-    COMBINE_SALTGENES ( SALTGENES.out.counts.map{ it[1] }.collect(), "saltgenes_summary" )
+    COMBINE_SALTGENES ( SALTGENES_BWAMEM2ALIGN.out.stats.map{ it[1] }.collect(), "saltgenes_summary" )
 
     // Merge saltgene table with depth-and-tax table
     MERGE_ALLTAB ( COMBINE_SALTGENES.out.combined, tax )
@@ -80,6 +80,5 @@ workflow SALTGENES {
     // MSA and tree per gene?
 
     emit:
-    counts = SALTGENES_BWAMEM2ALIGN.out.stats
     versions = ch_versions                     // channel: [ versions.yml ]
 }

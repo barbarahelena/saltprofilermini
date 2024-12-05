@@ -562,7 +562,7 @@ workflow SALTPROFILER {
                 ch_versions = ch_versions.mix(CAT.out.versions.first())
                 ch_versions = ch_versions.mix(CAT_SUMMARY.out.versions)
 
-                MERGE_TAXDEPTHS( MAG_DEPTHS_SUMMARY.out.summary, CAT_SUMMARY.out.combined )
+                MERGE_TAXDEPTHS( DEPTHS.out.depths_summary, CAT_SUMMARY.out.combined )
                 ch_taxonomy = MERGE_TAXDEPTHS.out.summary
             }
             // If CAT is not run, then the CAT global summary should be an empty channel
@@ -587,7 +587,7 @@ workflow SALTPROFILER {
                     // Group all classification results for the whole run in a single file
                     COMBINE_SUMMARY_TSV ( KRAKEN2.out.tax.map{it[1]}.collect(), "kraken_summary" )
 
-                    MERGE_TAXDEPTHS( MAG_DEPTHS_SUMMARY.out.summary, COMBINE_SUMMARY_TSV.out.combined )
+                    MERGE_TAXDEPTHS( DEPTHS.out.depths_summary, COMBINE_SUMMARY_TSV.out.combined )
                     ch_taxonomy = MERGE_TAXDEPTHS.out.summary
             }
         }
@@ -634,7 +634,7 @@ workflow SALTPROFILER {
                             ch_short_reads,
                             ch_taxonomy
                         )
-                    ch_versions = ch_versions.mix(SALTGENES.out.versions.first())
+                        ch_versions = ch_versions.mix(SALTGENES.out.versions.first())
 
                     }
             }
