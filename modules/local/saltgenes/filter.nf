@@ -19,28 +19,33 @@ process SALTGENES_FILTER {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}_${gene}"
-
     """
+    echo ${gff}
     awk '\$3 == "gene" && \$0 ~ /Name=${gene}/' ${gff} > ${prefix}.gff
 
-    bedtools \\
-        getfasta \\
-        $args \\
-        -bed ${prefix}.gff \\
-        -fi ${fasta} \\
-        -fo ${prefix}.fasta
+    if [ -s ${prefix}.gff ]; then
+    echo "Gene ${gene} found in ${gff}"
+        bedtools \\
+            getfasta \\
+            $args \\
+            -bed ${prefix}.gff \\
+            -fi ${fasta} \\
+            -fo ${prefix}.fasta
 
-    awk -v sample_id="bin_${meta.id}" -v gene_id="gene_${gene}" ' 
-    /^>/ {
-        count++
-        sub(/^>/, ">" sample_id "_" gene_id "_" count "_")
-        print
-    } 
-    !/^>/ { 
-        print 
-    }' ${prefix}.fasta > ${prefix}_fixed.fasta
+        awk -v sample_id="bin_${meta.id}" -v gene_id="gene_${gene}" ' 
+        /^>/ {
+            count++
+            sub(/^>/, ">" sample_id "_" gene_id "_" count "_")
+            print
+        } 
+        !/^>/ { 
+            print 
+        }' ${prefix}.fasta > ${prefix}_fixed.fasta
 
-    rm ${prefix}.fasta
+        rm ${prefix}.fasta
+    else
+        echo "No gene found matching ${gene} in ${gff}" > ${prefix}_fixed.fasta
+    fi
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -49,7 +54,6 @@ process SALTGENES_FILTER {
     """
 
     stub:
-    def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
 
     """

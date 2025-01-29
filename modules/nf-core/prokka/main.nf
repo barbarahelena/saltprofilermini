@@ -33,7 +33,7 @@ process PROKKA {
     def args = task.ext.args   ?: ''
     prefix   = task.ext.prefix ?: "${meta.id}"
     def proteins_opt = proteins ? "--proteins ${proteins[0]}" : ""
-    def prodigal_tf = prodigal_tf ? "--prodigaltf ${prodigal_tf[0]}" : ""
+    def prodigal_tf_opt = prodigal_tf ? "--prodigaltf ${prodigal_tf[0]}" : ""
     """
     export TMPDIR="\$PWD/tmp"
     mkdir -p "\$PWD/tmp"
@@ -44,7 +44,7 @@ process PROKKA {
         --cpus $task.cpus \\
         --prefix $prefix \\
         $proteins_opt \\
-        $prodigal_tf \\
+        $prodigal_tf_opt \\
         $fasta
 
     rm -r tmp

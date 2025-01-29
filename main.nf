@@ -8,7 +8,7 @@ nextflow.enable.dsl = 2
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { SALTPROFILER            } from './workflows/saltprofiler'
+include { SALTPROFILERMINI        } from './workflows/saltprofilermini'
 include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_saltprofiler'
 include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_saltprofiler'
 include { getGenomeAttribute      } from './subworkflows/local/utils_saltprofiler'
@@ -25,7 +25,6 @@ include { getGenomeAttribute      } from './subworkflows/local/utils_saltprofile
 workflow MAIN {
 
     take:
-        raw_short_reads  // channel: samplesheet read in from --input
         input_assemblies
         input_genes
 
@@ -34,14 +33,10 @@ workflow MAIN {
     //
     // WORKFLOW: Run pipeline
     //
-    SALTPROFILER (
-        raw_short_reads,  // channel: samplesheet read in from --input
+    SALTPROFILERMINI (
         input_assemblies,
         input_genes
     )
-
-    emit:
-    multiqc_report = MAG.out.multiqc_report // channel: /path/to/multiqc_report.html
 
 }
 /*
@@ -64,14 +59,14 @@ workflow {
         params.monochrome_logs,
         args,
         params.outdir,
-        params.input
+        params.assembly_input,
+        params.genes_input
     )
 
     //
     // WORKFLOW: Run main workflow
     //
-    SALTPROFILER (
-        PIPELINE_INITIALISATION.out.raw_short_reads,
+    SALTPROFILERMINI (
         PIPELINE_INITIALISATION.out.input_assemblies,
         PIPELINE_INITIALISATION.out.input_genes
     )
@@ -86,7 +81,7 @@ workflow {
         params.outdir,
         params.monochrome_logs,
         params.hook_url,
-        SALTPROFILER.out.multiqc_report
+        null
     )
 }
 

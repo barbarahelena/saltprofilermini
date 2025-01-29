@@ -35,7 +35,8 @@ workflow PIPELINE_INITIALISATION {
     monochrome_logs   // boolean: Do not use coloured log outputs
     nextflow_cli_args //   array: List of positional nextflow CLI args
     outdir            //  string: The output directory where the results will be saved
-    input             //  string: Path to input samplesheet
+    assembly_input    //  string: Path to input samplesheet
+    genes_input       //  string: Path to input genes of interest   
 
     main:
 
@@ -74,30 +75,6 @@ workflow PIPELINE_INITIALISATION {
     )
 
     //
-    // Create channels from input file provided through params.input and params.assembly_input
-    //
-
-    // Validate FASTQ input
-    ch_samplesheet = Channel
-        .fromSamplesheet("input")
-        .map {
-            validateInputSamplesheet(it[0], it[1], it[2], it[3])
-        }
-
-    // Prepare FASTQs channel and separate short reads and prepare
-    ch_raw_short_reads = ch_samplesheet
-        .map { meta, sr1, sr2, lr ->
-                    meta.run          = meta.run == null ? "0" : meta.run
-                    meta.single_end   = params.single_end
-
-                    if (params.single_end) {
-                        return [ meta, [ sr1 ] ]
-                    } else {
-                        return [ meta, [ sr1, sr2 ] ]
-                    }
-            }
-
-    //
     // Custom validation for pipeline parameters
     //
 
@@ -109,34 +86,22 @@ workflow PIPELINE_INITIALISATION {
 
     // Prepare ASSEMBLY input channel
     if (params.assembly_input) {
-        ch_input_assemblies
-            .map { meta, fasta ->
-                    return [ meta + [id: params.coassemble_group ? "group-${meta.group}" : meta.id], [ fasta ] ]
-                }
+        ch_input_assemblies = ch_input_assemblies
+            .map { meta, fasta, tax ->
+                def metanew = [id: meta.id, tax: tax]
+                return [metanew, fasta]
+            }
     } else {
         ch_input_assemblies    = Channel.empty()
     }
 
     // Cross validation of input assembly and read IDs: ensure groups are all represented between reads and assemblies
     if (params.assembly_input) {
-        ch_read_ids = ch_samplesheet
-            .map { meta, sr1, sr2, lr -> params.coassemble_group ? meta.group : meta.id }
-            .unique()
-            .toList()
-            .sort()
-
         ch_assembly_ids = ch_input_assemblies
-            .map { meta, fasta -> params.coassemble_group ? meta.group : meta.id }
+            .map { meta, fasta -> meta.id }
             .unique()
             .toList()
             .sort()
-
-        ch_read_ids.concat(ch_assembly_ids).collect(flat: false) // need flat:false to ensure the two lists of IDs in the channels don't get smushed into a single list (and thus no ids1 and ids2 lists to compare)
-            .map { ids1, ids2 ->
-                if (ids1.sort() != ids2.sort()) {
-                    exit 1, "[nf-core/mag] ERROR: supplied IDs or Groups in read and assembly CSV files do not match!"
-                }
-            }
     }
 
     // Validate genes of interest input when supplied
@@ -150,7 +115,6 @@ workflow PIPELINE_INITIALISATION {
     }
 
     emit:
-    raw_short_reads  = ch_raw_short_reads
     input_assemblies = ch_input_assemblies
     input_genes = ch_input_genes
     versions    = ch_versions
@@ -314,17 +278,6 @@ workflow PIPELINE_COMPLETION {
 //         error('[nf-core/mag] ERROR: Invalid parameter combination: --save_mmseqs_db supplied but no database has been requested for download with --metaeuk_mmseqs_db!')
 //     }
 // }
-
-//
-// Validate channels from input samplesheet
-//
-def validateInputSamplesheet(meta, sr1, sr2, lr) {
-
-        if ( !sr2 && !params.single_end ) { error("[nf-core/mag] ERROR: Single-end data must be executed with `--single_end`. Note that it is not possible to mix single- and paired-end data in one run! Check input TSV for sample: ${meta.id}") }
-        if ( sr2 && params.single_end ) { error("[nf-core/mag] ERROR: Paired-end data must be executed without `--single_end`. Note that it is not possible to mix single- and paired-end data in one run! Check input TSV for sample: ${meta.id}") }
-
-    return [meta, sr1, sr2, lr]
-}
 
 //
 // Get attribute from genome config file e.g. fasta
