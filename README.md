@@ -13,7 +13,7 @@
 
 ## Introduction
 
-**saltprofilermini** is a bioinformatics pipeline for the annotation of metagenomes focused on salt tolerance genes.
+**saltprofilermini** is a very short bioinformatics pipeline for the annotation of metagenomes focused on salt tolerance genes.
 
 <!-- <p align="center">
     <img src="docs/images/mag_workflow.png" alt="nf-core/mag workflow overview" width="90%">
@@ -23,7 +23,7 @@
 
 This pipeline uses assemblies as input. The pipeline then:
 - predicts protein-coding genes for the assemblies using [Prodigal](https://github.com/hyattpd/Prodigal), and bins with [Prokka](https://github.com/tseemann/prokka)
-- assigns taxonomy to bins using [GTDB-Tk](https://github.com/Ecogenomics/GTDBTk) and/or [CAT](https://github.com/dutilh/CAT)
+- filters genes for genes of interest
 
 Furthermore, the pipeline creates various reports in the results directory specified, including a [MultiQC](https://multiqc.info/) report summarizing some of the findings and software versions.
 
