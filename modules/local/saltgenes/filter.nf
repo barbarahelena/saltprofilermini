@@ -1,5 +1,6 @@
 process SALTGENES_FILTER {
     tag "$meta.id"
+    label "process_single"
 
     conda "bioconda::bedtools=2.31.1"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -7,61 +8,65 @@ process SALTGENES_FILTER {
         'biocontainers/bedtools:2.31.1--hf5e1c6e_2' }"
 
     input:
-    tuple val(meta), path(gff), path(fasta), val(gene)
+    tuple val(meta), path(fasta), path(gff), val(gene)
 
     output:
-    tuple val(meta), val(gene), path("*_fixed.fasta"), path("*.gff")     , emit: seqs
-    path "versions.yml"                                                  , emit: versions
+    tuple val(meta), val(gene), path("*_${gene}_fixed.fasta"), path("*_${gene}.gff")   , emit: seqs
+    path "versions.yml"                                                                 , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}_${gene}"
     """
-    echo ${gff}
-    awk '\$3 == "gene" && \$0 ~ /Name=${gene}/' ${gff} > ${prefix}.gff
+    echo "Processing GFF: ${gff} for gene: ${gene}"
 
-    if [ -s ${prefix}.gff ]; then
-    echo "Gene ${gene} found in ${gff}"
-        bedtools \\
-            getfasta \\
-            $args \\
-            -bed ${prefix}.gff \\
-            -fi ${fasta} \\
-            -fo ${prefix}.fasta
+    # Extract relevant entries from the GFF file
+    awk -F '\\t' -v gene="${gene}" '
+    BEGIN { OFS="\\t"; IGNORECASE=1 }
+    \$3 == "CDS" && tolower(\$9) ~ "gene="tolower(gene)"([;]|\$)" {
+        print \$1, \$4, \$5, \$7, \$9
+    }
+    ' "${gff}" > "${meta.id}_${gene}.gff"
 
-        awk -v sample_id="bin_${meta.id}" -v gene_id="gene_${gene}" ' 
-        /^>/ {
-            count++
-            sub(/^>/, ">" sample_id "_" gene_id "_" count "_")
-            print
-        } 
-        !/^>/ { 
-            print 
-        }' ${prefix}.fasta > ${prefix}_fixed.fasta
+    echo "Extracted gene coordinates to ${meta.id}_${gene}.gff"
 
-        rm ${prefix}.fasta
+    # Check if the gene was found
+    if [ -s "${meta.id}_${gene}.gff" ]; then
+        echo "Gene ${gene} found in ${gff}"
     else
-        echo "No gene found matching ${gene} in ${gff}" > ${prefix}_fixed.fasta
+        echo "Gene ${gene} not found in ${gff}"
+    fi
+
+    # Extract the sequence using bedtools
+    if [ -s "${meta.id}_${gene}.gff" ]; then
+        bedtools getfasta \\
+            -fi "${fasta}" \\
+            -bed "${meta.id}_${gene}.gff" \\
+            -s \\
+            -fo "${meta.id}_${gene}_fixed.fasta"
+        echo "Extracted sequences to ${meta.id}_${gene}_fixed.fasta"
+    else
+        echo "No sequences extracted for ${gene}."
+        touch "${meta.id}_${gene}_fixed.fasta"
     fi
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        gffread: \$(gffread --version | sed -n 's/.*version \\([0-9.]*\\)/\\1/p')
+        awk: \$(awk --version 2>&1 | head -n 1 | awk '{print \$3}')
+        bedtools: \$(bedtools --version | head -n 1 | awk '{print \$2}')
     END_VERSIONS
     """
 
     stub:
-    def prefix = task.ext.prefix ?: "${meta.id}"
-
     """
-    touch ${prefix}/${prefix}_${gene}.fasta
+    touch ${meta.id}_${gene}_fixed.fasta
+    touch ${meta.id}_${gene}.gff3
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        gffread: \$(gffread --version | sed -n 's/.*version \\([0-9.]*\\)/\\1/p')
+        awk: \$(awk --version | head -n 1 | awk '{print \$3}')
+        bedtools: \$(bedtools --version | head -n 1 | awk '{print \$2}')
     END_VERSIONS
     """
 }

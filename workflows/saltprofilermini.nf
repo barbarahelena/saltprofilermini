@@ -12,14 +12,14 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_saltprofile
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
 //
-include { SALTGENES                       } from '../subworkflows/local/saltgenes'
+include { SALTGENES                } from '../subworkflows/local/saltgenes'
 
 //
 // MODULE: Installed directly from nf-core/modules
 //
 include { PRODIGAL                        } from '../modules/nf-core/prodigal/main'
-include { PROKKA                          } from '../modules/nf-core/prokka/main'
-
+include { BAKTA_BAKTA                     } from '../modules/nf-core/bakta/bakta/main'
+include { BAKTA_BAKTADBDOWNLOAD           } from '../modules/nf-core/bakta/baktadbdownload/main'
 
 ////////////////////////////////////////////////////
 /* --  Create channel for reference databases  -- */
@@ -40,6 +40,7 @@ workflow SALTPROFILERMINI {
     main:
 
     ch_versions = Channel.empty()
+    bakta_db = params.bakta_database ? Channel.fromPath( params.bakta_database ).first() : []
 
     /*
     ================================================================================
@@ -56,29 +57,32 @@ workflow SALTPROFILERMINI {
     }
             
     /*
-        * Prokka: Genome annotation
+        * Bakta: Genome annotation
     */
 
-    if (!params.skip_prokka){
-        PROKKA (
-            input_assemblies,
+    if (!params.skip_bakta){
+        if ( ! bakta_db ){
+            BAKTA_BAKTADBDOWNLOAD()
+            bakta_db = BAKTA_BAKTADBDOWNLOAD.out.db
+        }         
+        BAKTA_BAKTA( 
+            input_assemblies, 
+            bakta_db,
             [],
             []
         )
-        ch_versions = ch_versions.mix(PROKKA.out.versions.first())
+        ch_annotation = BAKTA_BAKTA.out.fna.join(BAKTA_BAKTA.out.gff)
+        ch_versions = ch_versions.mix( BAKTA_BAKTA.out.versions.first() )
 
         /*
         * Overview of salt tolerance genes
         */
 
         if ( !params.skip_saltgenes ) {
-            ch_prokka_output = PROKKA.out.gff.combine(PROKKA.out.fna, by: 0)
-            SALTGENES(
-                input_genes,
-                ch_prokka_output
-            )
-            ch_versions = ch_versions.mix(SALTGENES.out.versions.first())
 
+            SALTGENES(input_genes, ch_annotation)
+
+            ch_versions = ch_versions.mix(SALTGENES.out.versions.first())
         }
     }
 
